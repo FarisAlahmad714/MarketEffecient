@@ -1,9 +1,9 @@
-/ src/pages/ItemDetail.tsx
+// src/pages/ItemDetail.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { itemService } from '../services/itemService';
 import { ItemForm } from '../components/forms/ItemForm';
-import { Item, ItemUpdate } from '../types/item';
+import { Item, ItemUpdate } from '../types/items';
 
 export const ItemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();

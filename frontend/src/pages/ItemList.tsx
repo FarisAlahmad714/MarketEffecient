@@ -1,9 +1,9 @@
 // src/pages/ItemList.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useItems } from '../hooks/useItems';
+import { useItems } from '../hooks/useItem';
 import { ItemForm } from '../components/forms/ItemForm';
-import { ItemCreate } from '../types/item';
+import { ItemCreate } from '../types/items';
 
 export const ItemList: React.FC = () => {
   const { 

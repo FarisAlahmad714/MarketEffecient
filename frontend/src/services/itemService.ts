@@ -1,6 +1,6 @@
 // src/services/itemService.ts
 import { api } from './api';
-import { Item, ItemCreate, ItemUpdate } from '../types/item';
+import { Item, ItemCreate, ItemUpdate } from '../types/items';
 
 const BASE_PATH = '/items';
 
