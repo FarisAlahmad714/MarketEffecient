@@ -1,10 +1,18 @@
-// src/App.tsx
-import { RouterProvider } from 'react-router-dom';
-import { router } from './routes';
+import React from 'react';
 import './App.css';
+import { ItemList } from './components/ItemList';
 
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <div className="App">
+      <header className="App-header">
+        <h1>My Simple App</h1>
+      </header>
+      <main>
+        <ItemList />
+      </main>
+    </div>
+  );
 }
 
 export default App;
