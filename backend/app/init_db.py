@@ -1,5 +1,7 @@
 import asyncio
 import logging
+
+import pandas as pd
 from sqlalchemy.orm import Session
 
 from app.database import get_db, engine
@@ -54,7 +56,8 @@ async def init_asset(db: Session, asset_data):
     else:
         data = await fetch_alpha_vantage_data(asset, days=365, db=db)
     
-    if not data or data.empty:
+    if data is None or (isinstance(data, pd.DataFrame) and data.empty):
+
         logger.error(f"Failed to fetch data for {asset.name}")
         return
     

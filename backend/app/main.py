@@ -7,7 +7,7 @@ import logging
 
 from app.database import get_db, engine
 from app.models import base
-from app.api.routes import assets, tests
+from app.api.routes import assets, test
 
 # Create static directories if they don't exist
 os.makedirs("app/static/crypto", exist_ok=True)
@@ -44,7 +44,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Include API routes
 app.include_router(assets.router, prefix="/api", tags=["assets"])
-app.include_router(tests.router, prefix="/api", tags=["tests"])
+app.include_router(test.router, prefix="/api", tags=["tests"])
+
 
 # Health check endpoint
 @app.get("/health", tags=["health"])

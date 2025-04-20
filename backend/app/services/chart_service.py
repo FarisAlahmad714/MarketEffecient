@@ -25,15 +25,15 @@ async def generate_charts(db: Session, asset: Asset, date_n):
     
     # Convert to pandas DataFrame
     setup_df = pd.DataFrame([
-        {
-            "Date": data.date,
-            "Open": data.open,
-            "High": data.high,
-            "Low": data.low,
-            "Close": data.close,
-            "Volume": data.volume
-        } for data in reversed(setup_data)
-    ])
+    {
+        "Date": data.date,
+        "Open": data.open,
+        "High": data.high,
+        "Low": data.low,
+        "Close": data.close,
+        "Volume": 0.0 if data.volume is None else float(data.volume)  # Convert None to 0.0
+    } for data in reversed(setup_data)
+])
     setup_df["Date"] = pd.to_datetime(setup_df["Date"])
     setup_df.set_index("Date", inplace=True)
     
@@ -55,15 +55,16 @@ async def generate_charts(db: Session, asset: Asset, date_n):
     
     # Convert to pandas DataFrame
     outcome_df = pd.DataFrame([
-        {
-            "Date": data.date,
-            "Open": data.open,
-            "High": data.high,
-            "Low": data.low,
-            "Close": data.close,
-            "Volume": data.volume
-        } for data in reversed(outcome_data)
-    ])
+    {
+        "Date": data.date,
+        "Open": data.open,
+        "High": data.high,
+        "Low": data.low,
+        "Close": data.close,
+        "Volume": 0.0 if data.volume is None else float(data.volume)  # Convert None to 0.0
+    } for data in reversed(outcome_data)
+])
+
     outcome_df["Date"] = pd.to_datetime(outcome_df["Date"])
     outcome_df.set_index("Date", inplace=True)
     
