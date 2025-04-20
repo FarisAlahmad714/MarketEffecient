@@ -1,0 +1,94 @@
+.bias-test h1 {
+    color: #333;
+    margin-bottom: 1.5rem;
+  }
+  
+  .question {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .question h3 {
+    color: #555;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+  }
+  
+  .chart-container {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .chart {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  .ohlc-data {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+  }
+  
+  .ohlc-data p {
+    margin-top: 0;
+    font-weight: bold;
+  }
+  
+  .ohlc-data ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .prediction {
+    margin-top: 1.5rem;
+  }
+  
+  .prediction p {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .prediction label {
+    display: inline-block;
+    margin-right: 2rem;
+    cursor: pointer;
+  }
+  
+  .prediction input {
+    margin-right: 0.5rem;
+  }
+  
+  .submit-button {
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: block;
+    margin: 2rem auto;
+  }
+  
+  .submit-button:hover {
+    background-color: #1976d2;
+  }
+  
+  .submit-button:disabled {
+    background-color: #bbdefb;
+    cursor: not-allowed;
+  }

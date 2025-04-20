@@ -1,0 +1,143 @@
+.results h1 {
+    color: #333;
+    margin-bottom: 1.5rem;
+  }
+  
+  .score-summary {
+    background-color: #e8f5e9;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .score-summary p {
+    font-size: 1.2rem;
+    margin: 0;
+  }
+  
+  .score-percentage {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2e7d32;
+    background-color: #fff;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .result-item {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .result-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+  }
+  
+  .result-item.correct::before {
+    background-color: #4caf50;
+  }
+  
+  .result-item.incorrect::before {
+    background-color: #f44336;
+  }
+  
+  .result-item h3 {
+    color: #555;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+  }
+  
+  .charts-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  @media (max-width: 768px) {
+    .charts-container {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .chart-wrapper {
+    text-align: center;
+  }
+  
+  .chart-wrapper p {
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+  }
+  
+  .chart {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  .prediction-result {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1.5rem;
+  }
+  
+  .prediction-result p {
+    margin: 0.5rem 0;
+  }
+  
+  .result-label {
+    font-weight: bold;
+    margin-top: 1rem !important;
+  }
+  
+  .correct .result-label {
+    color: #2e7d32;
+  }
+  
+  .incorrect .result-label {
+    color: #c62828;
+  }
+  
+  .actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .action-button {
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .action-button:hover {
+    background-color: #1976d2;
+    transform: translateY(-2px);
+  }
