@@ -45,7 +45,7 @@ const Results = () => {
             <div className="chart-wrapper">
               <p>Setup Chart:</p>
               <img
-                src={`http://localhost:8000/static/${answer.setup_chart_url.split('/static/')[1]}`}
+                src={`http://localhost:8000${answer.setup_chart_url || ''}`}
                 alt="Setup Chart"
                 className="chart"
               />
@@ -54,7 +54,7 @@ const Results = () => {
             <div className="chart-wrapper">
               <p>Outcome Chart:</p>
               <img
-                src={`http://localhost:8000${answer.outcome_chart_url}`}
+                src={`http://localhost:8000${answer.outcome_chart_url || ''}`}
                 alt="Outcome Chart"
                 className="chart"
               />

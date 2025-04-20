@@ -23,6 +23,7 @@ class TestAnswerResponse(BaseModel):
     user_prediction: str
     correct_answer: str
     is_correct: bool
+    setup_chart_url: str
     outcome_chart_url: str
     date: date
     ohlc: OHLC

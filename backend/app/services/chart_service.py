@@ -80,9 +80,9 @@ async def generate_charts(db: Session, asset: Asset, date_n):
     full_setup_path = f"{settings.CHARTS_DIR}/{setup_path}"
     full_outcome_path = f"{settings.CHARTS_DIR}/{outcome_path}"
     
-    # Generate and save charts
-    mpf.plot(setup_df, type="candle", style="charles", figscale=1.5, savefig=full_setup_path)
-    mpf.plot(outcome_df, type="candle", style="charles", figscale=1.5, savefig=full_outcome_path)
+    # Generate and save charts - use dict format for savefig
+    mpf.plot(setup_df, type="candle", style="charles", figscale=1.5, savefig=dict(fname=full_setup_path, dpi=300))
+    mpf.plot(outcome_df, type="candle", style="charles", figscale=1.5, savefig=dict(fname=full_outcome_path, dpi=300))
     
     logger.info(f"Generated charts for {asset.symbol} - {date_n}")
     

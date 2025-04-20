@@ -25,8 +25,11 @@ async def fetch_coingecko_data(asset: Asset, days=365, db: Session = None):
     cached_data = redis_client.get(cache_key)
     if cached_data:
         logger.info(f"Using cached data for {asset.symbol} from Redis")
-        data = pd.read_json(cached_data)
-        data.index = pd.to_datetime(data.index)
+        # Parse the JSON string from Redis
+        json_data = json.loads(cached_data)
+        data = pd.DataFrame(json_data)
+        data["Date"] = pd.to_datetime(data["Date"])
+        data.set_index("Date", inplace=True)
         return data
     
     # Not in cache, fetch from API
@@ -77,8 +80,11 @@ async def fetch_alpha_vantage_data(asset: Asset, days=365, db: Session = None):
     cached_data = redis_client.get(cache_key)
     if cached_data:
         logger.info(f"Using cached data for {asset.symbol} from Redis")
-        data = pd.read_json(cached_data)
-        data.index = pd.to_datetime(data.index)
+        # Parse the JSON string from Redis
+        json_data = json.loads(cached_data)
+        data = pd.DataFrame(json_data)
+        data["Date"] = pd.to_datetime(data["Date"])
+        data.set_index("Date", inplace=True)
         return data
     
     # Not in cache, fetch from API

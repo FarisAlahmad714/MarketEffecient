@@ -109,6 +109,7 @@ async def submit_test_answers(
             "user_prediction": answer.prediction,
             "correct_answer": test.correct_bias,
             "is_correct": is_correct,
+            "setup_chart_url": f"/static/{test.setup_chart_path}",
             "outcome_chart_url": f"/static/{test.outcome_chart_path}",
             "date": test.date,
             "ohlc": {
