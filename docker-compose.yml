@@ -31,12 +31,24 @@ services:
       timeout: 5s
       retries: 5
 
-  # FastAPI backend
-  backend:
+  # Database migration service
+  migration:
     build: ./backend
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tradingapp
+    volumes:
+      - ./backend:/app
+    command: python run_migrations.py
+    
+  # FastAPI backend
+  backend:
+    build: ./backend
+    depends_on:
+      migration:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     environment:
@@ -68,10 +80,8 @@ services:
   init-db:
     build: ./backend
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
       backend:
         condition: service_started
     environment:

@@ -39,3 +39,378 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   }
+
+/* Bias Test Selection Page Styling */
+.bias-selection-container {
+    padding: 40px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.section-header h1 {
+    font-size: 2.8rem;
+    margin-bottom: 15px;
+}
+
+.highlight {
+    color: #4CAF50;
+    position: relative;
+    z-index: 1;
+}
+
+.section-header p {
+    color: #b0b0b0;
+    font-size: 1.2rem;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+/* Quick Access Grid */
+.quick-access-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 30px;
+    margin-bottom: 60px;
+}
+
+.quick-card {
+    height: 380px;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+}
+
+.quick-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.5s ease;
+    z-index: 0;
+}
+
+.quick-card.random-bias::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&w=800&q=60') no-repeat center/cover;
+}
+
+.quick-card.btc::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://images.unsplash.com/photo-1516245834210-c4c142787335?auto=format&w=800&q=60') no-repeat center/cover;
+}
+
+.quick-card.eth::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://imageio.forbes.com/specials-images/imageserve/66f508976bb31223eca58524/An-image-of-an-Ethereum-crypto-coin-to-represent-the-question-what-is-Ethereum-/960x0.jpg?format=jpg&width=960') no-repeat center/cover;
+}
+
+.quick-card.sol::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://www.chainalysis.com/wp-content/uploads/2023/03/solana-min-scaled-1.jpg') no-repeat center/cover;
+}
+
+.quick-card.nvda::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&w=800&q=60') no-repeat center/cover;
+}
+
+.quick-card.aapl::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://images.unsplash.com/photo-1491933382434-500287f9b54b?auto=format&w=800&q=60') no-repeat center/cover;
+}
+
+.quick-card.tsla::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://images.unsplash.com/photo-1617704548623-340376564e68?auto=format&w=800&q=60') no-repeat center/cover;
+}
+
+.quick-card.gld::before {
+    background: linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), 
+                url('https://images.unsplash.com/photo-1610375461369-d613b564bad9?auto=format&w=800&q=60') no-repeat center/cover;
+}
+
+.quick-card:hover::before {
+    transform: scale(1.1);
+}
+
+.quick-card-inner {
+    position: relative;
+    z-index: 1;
+    padding: 30px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.quick-icon {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, #4CAF50 0%, #2196F3 100%);
+    color: white;
+}
+
+.quick-card.btc .quick-icon {
+    background: linear-gradient(135deg, #F7931A 0%, #FF9900 100%);
+}
+
+.quick-card.eth .quick-icon {
+    background: linear-gradient(135deg, #627EEA 0%, #829FFF 100%);
+}
+
+.quick-card.sol .quick-icon {
+    background: linear-gradient(135deg, #00FFA3 0%, #DC1FFF 100%);
+}
+
+.quick-card.nvda .quick-icon {
+    background: linear-gradient(135deg, #76B900 0%, #1A5200 100%);
+}
+
+.quick-card.aapl .quick-icon {
+    background: linear-gradient(135deg, #A2AAAD 0%, #000000 100%);
+}
+
+.quick-card.tsla .quick-icon {
+    background: linear-gradient(135deg, #E82127 0%, #8B0000 100%);
+}
+
+.quick-card.gld .quick-icon {
+    background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+}
+
+.quick-card h3 {
+    font-size: 1.6rem;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.quick-card p {
+    color: #b0b0b0;
+    margin-bottom: 20px;
+    line-height: 1.5;
+    flex-grow: 1;
+}
+
+.tool-info {
+    color: #888;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+}
+
+.tool-info i {
+    color: #4CAF50;
+    margin-right: 8px;
+}
+
+.quick-card.btc .tool-info i {
+    color: #F7931A;
+}
+
+.quick-card.eth .tool-info i {
+    color: #627EEA;
+}
+
+.quick-card.sol .tool-info i {
+    color: #00FFA3;
+}
+
+.quick-card.nvda .tool-info i {
+    color: #76B900;
+}
+
+.quick-card.aapl .tool-info i {
+    color: #A2AAAD;
+}
+
+.quick-card.tsla .tool-info i {
+    color: #E82127;
+}
+
+.quick-card.gld .tool-info i {
+    color: #FFD700;
+}
+
+.quick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 25px;
+    background: linear-gradient(90deg, #4CAF50, #2196F3);
+    color: white;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+}
+
+.quick-card.btc .quick-btn {
+    background: linear-gradient(90deg, #F7931A, #FF9900);
+}
+
+.quick-card.eth .quick-btn {
+    background: linear-gradient(90deg, #627EEA, #829FFF);
+}
+
+.quick-card.sol .quick-btn {
+    background: linear-gradient(90deg, #00FFA3, #DC1FFF);
+}
+
+.quick-card.nvda .quick-btn {
+    background: linear-gradient(90deg, #76B900, #1A5200);
+}
+
+.quick-card.aapl .quick-btn {
+    background: linear-gradient(90deg, #A2AAAD, #000000);
+}
+
+.quick-card.tsla .quick-btn {
+    background: linear-gradient(90deg, #E82127, #8B0000);
+}
+
+.quick-card.gld .quick-btn {
+    background: linear-gradient(90deg, #FFD700, #B8860B);
+}
+
+.quick-btn i {
+    margin-left: 10px;
+    transition: transform 0.3s ease;
+}
+
+.quick-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+}
+
+.quick-btn:hover i {
+    transform: translateX(5px);
+}
+
+.quick-card.coming-soon {
+    opacity: 0.7;
+}
+
+/* How It Works Section */
+.prediction-guide {
+    background: #1e1e1e;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.guide-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.guide-header h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, #ffffff, #4CAF50);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.guide-header p {
+    color: #b0b0b0;
+    font-size: 1.1rem;
+}
+
+.guide-steps {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.guide-step {
+    flex: 1;
+    background: #242424;
+    padding: 25px;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.guide-step:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #4CAF50 0%, #2196F3 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.step-content h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.step-content p {
+    color: #b0b0b0;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Loading and Error States */
+.loading, .error {
+    text-align: center;
+    padding: 50px;
+    font-size: 1.2rem;
+    color: #b0b0b0;
+}
+
+.error {
+    color: #ff5252;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .quick-access-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .guide-steps {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 768px) {
+    .section-header h1 {
+        font-size: 2.2rem;
+    }
+    
+    .prediction-guide {
+        padding: 30px 20px;
+    }
+}

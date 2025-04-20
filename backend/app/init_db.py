@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db, engine
 from app.models import base
 from app.models.asset import Asset
-from app.services.data_service import fetch_coingecko_data, fetch_alpha_vantage_data
-from app.services.chart_service import prepare_test_data
+from app.services.data_service import fetch_coingecko_data, fetch_alpha_vantage_data, fetch_data_for_all_timeframes, VALID_TIMEFRAMES
+from app.services.chart_service import prepare_test_data_for_all_timeframes
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -50,19 +50,20 @@ async def init_asset(db: Session, asset_data):
     else:
         logger.info(f"Asset already exists: {asset.name} ({asset.symbol})")
     
-    # Fetch price data
-    if asset.type == "crypto":
-        data = await fetch_coingecko_data(asset, days=365, db=db)
-    else:
-        data = await fetch_alpha_vantage_data(asset, days=365, db=db)
+    # Fetch price data for all timeframes
+    # This will fetch data for all timeframes and store in the database
+    timeframe_data = await fetch_data_for_all_timeframes(asset, db=db)
     
-    if data is None or (isinstance(data, pd.DataFrame) and data.empty):
-
+    if not timeframe_data:
         logger.error(f"Failed to fetch data for {asset.name}")
         return
     
-    # Prepare test data
-    tests = await prepare_test_data(db, asset, num_tests=5)
+    # Check which timeframes have data
+    available_timeframes = list(timeframe_data.keys())
+    logger.info(f"Fetched data for {asset.name} with timeframes: {', '.join(available_timeframes)}")
+    
+    # Prepare test data for all timeframes
+    tests = await prepare_test_data_for_all_timeframes(db, asset, num_tests_per_timeframe=5)
     logger.info(f"Created {len(tests)} tests for {asset.name}")
 
 async def init_db():
@@ -78,12 +79,14 @@ async def init_db():
         # Initialize crypto assets
         for asset_data in CRYPTO_ASSETS:
             await init_asset(db, asset_data)
-            await asyncio.sleep(1)  # Avoid rate limiting
+            logger.info("Sleeping for 5 seconds before next asset...")
+            await asyncio.sleep(5)  # Longer delay between assets
         
         # Initialize equity assets
         for asset_data in EQUITY_ASSETS:
             await init_asset(db, asset_data)
-            await asyncio.sleep(1)  # Avoid rate limiting
+            logger.info("Sleeping for 5 seconds before next asset...")
+            await asyncio.sleep(5)  # Longer delay between assets
         
         logger.info("Database initialization complete")
     

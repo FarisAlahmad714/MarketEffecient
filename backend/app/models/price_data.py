@@ -8,6 +8,7 @@ class PriceData(BaseModel):
     
     asset_id = Column(Integer, ForeignKey("assets.id"))
     date = Column(Date, index=True)
+    timeframe = Column(String, default="daily", index=True)  # 4h, daily, weekly, monthly
     open = Column(Float)
     high = Column(Float)
     low = Column(Float)
@@ -18,4 +19,4 @@ class PriceData(BaseModel):
     asset = relationship("Asset", backref="price_data")
     
     def __repr__(self):
-        return f"<PriceData {self.asset.symbol} - {self.date}: O:{self.open} H:{self.high} L:{self.low} C:{self.close}>"
+        return f"<PriceData {self.asset.symbol} - {self.date} ({self.timeframe}): O:{self.open} H:{self.high} L:{self.low} C:{self.close}>"

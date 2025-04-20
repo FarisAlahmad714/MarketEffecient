@@ -1,8 +1,8 @@
 from app.schemas.asset import Asset, AssetCreate, AssetUpdate, AssetInDB
-from app.schemas.test import TestQuestion, TestAnswerSubmit, TestAnswerResponse, TestResult, TestSession, OHLC
+from app.schemas.test import TestQuestion, TestAnswerSubmit, TestAnswerResponse, TestResult, TestSession, OHLC, TimeframeSelection
 
 __all__ = [
     "Asset", "AssetCreate", "AssetUpdate", "AssetInDB",
     "TestQuestion", "TestAnswerSubmit", "TestAnswerResponse",
-    "TestResult", "TestSession", "OHLC"
+    "TestResult", "TestSession", "OHLC", "TimeframeSelection"
 ]

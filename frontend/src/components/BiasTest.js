@@ -1,42 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getTestForAsset, submitTestAnswers } from '../services/api';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { getTestForAsset, submitTestAnswers, getRandomCrossAssetTest } from '../services/api';
 import './BiasTest.css';
 
 const BiasTest = () => {
   const { assetSymbol } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get timeframe from URL query params
+  const queryParams = new URLSearchParams(location.search);
+  const timeframe = queryParams.get('timeframe') || 'random';
   
   const [testData, setTestData] = useState(null);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [actualAssetSymbol, setActualAssetSymbol] = useState('');
 
   useEffect(() => {
     const fetchTest = async () => {
       try {
         setLoading(true);
-        const data = await getTestForAsset(assetSymbol);
-        setTestData(data);
         
-        // Initialize answers object
-        const initialAnswers = {};
-        data.questions.forEach(q => {
-          initialAnswers[q.id] = null;
-        });
-        setAnswers(initialAnswers);
-        
-        setLoading(false);
+        // If assetSymbol is 'random', use the cross-asset endpoint
+        if (assetSymbol === 'random') {
+          try {
+            console.log(`Fetching random cross-asset test with timeframe: ${timeframe}`);
+            const data = await getRandomCrossAssetTest(timeframe);
+            setTestData(data);
+            setActualAssetSymbol('random'); // Use 'random' as the symbol for submission
+            
+            // Initialize answers object
+            const initialAnswers = {};
+            data.questions.forEach(q => {
+              initialAnswers[q.id] = null;
+            });
+            setAnswers(initialAnswers);
+            
+            setLoading(false);
+          } catch (randomError) {
+            console.error('Error fetching random cross-asset test:', randomError);
+            setError(`Failed to load random test. Please try again later. (${randomError.message})`);
+            setLoading(false);
+          }
+        } else {
+          // For a specific asset
+          setActualAssetSymbol(assetSymbol);
+          console.log(`Fetching test for asset: ${assetSymbol} with timeframe: ${timeframe}`);
+          const data = await getTestForAsset(assetSymbol, timeframe);
+          setTestData(data);
+          
+          // Initialize answers object
+          const initialAnswers = {};
+          data.questions.forEach(q => {
+            initialAnswers[q.id] = null;
+          });
+          setAnswers(initialAnswers);
+          
+          setLoading(false);
+        }
       } catch (err) {
-        setError(`Failed to load test for ${assetSymbol}. Please try again later.`);
+        console.error('Detailed error fetching test:', err);
+        setError(`Failed to load test. Please try again later. (${err.message})`);
         setLoading(false);
-        console.error('Error fetching test:', err);
       }
     };
 
     fetchTest();
-  }, [assetSymbol]);
+  }, [assetSymbol, timeframe]);
 
   const handleAnswerChange = (questionId, prediction) => {
     setAnswers(prev => ({
@@ -64,20 +97,33 @@ const BiasTest = () => {
         prediction
       }));
       
+      console.log('Submitting answers for asset:', actualAssetSymbol);
       const results = await submitTestAnswers(
-        assetSymbol, 
+        actualAssetSymbol, 
         testData.session_id, 
         formattedAnswers
       );
       
       // Navigate to results page with data
-      navigate(`/results/${assetSymbol}`, { state: { results } });
+      navigate(`/results/${actualAssetSymbol}`, { state: { results } });
       
     } catch (err) {
-      setError('Failed to submit test answers. Please try again.');
-      setSubmitting(false);
       console.error('Error submitting answers:', err);
+      setError(`Failed to submit test answers. Please try again. (${err.message})`);
+      setSubmitting(false);
     }
+  };
+
+  // Get a human-readable timeframe label
+  const getTimeframeLabel = (tf) => {
+    const labels = {
+      '4h': '4-Hour',
+      'daily': 'Daily',
+      'weekly': 'Weekly',
+      'monthly': 'Monthly',
+      'random': 'Mixed'
+    };
+    return labels[tf] || 'Unknown';
   };
 
   if (loading) {
@@ -85,21 +131,46 @@ const BiasTest = () => {
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return (
+      <div className="error">
+        <p>{error}</p>
+        <button onClick={() => navigate('/')} className="back-button">
+          Back to Asset Selection
+        </button>
+      </div>
+    );
   }
 
   if (!testData || !testData.questions || testData.questions.length === 0) {
-    return <div className="error">No test questions available for this asset.</div>;
+    return (
+      <div className="error">
+        <p>No test questions available for this asset.</p>
+        <button onClick={() => navigate('/')} className="back-button">
+          Back to Asset Selection
+        </button>
+      </div>
+    );
   }
 
   return (
     <div className="bias-test">
-      <h1>{testData.asset_name} Daily Bias Test</h1>
+      <h1>{testData.asset_name} Bias Test</h1>
+      <div className="test-info">
+        <span className="timeframe-badge">
+          {testData.selected_timeframe === 'random' ? 'Mixed Timeframes' : `${getTimeframeLabel(testData.selected_timeframe)} Timeframe`}
+        </span>
+      </div>
       
       <form onSubmit={handleSubmit}>
         {testData.questions.map((question, index) => (
           <div key={question.id} className="question">
-            <h3>Question {index + 1}</h3>
+            <h3>Question {index + 1}
+              <span className="timeframe-label"> - {getTimeframeLabel(question.timeframe)} Timeframe</span>
+              
+              {assetSymbol === 'random' && (
+                <span className="asset-label"> - {testData.asset_name === "Random Mix" ? "Mixed Assets" : testData.asset_name}</span>
+              )}
+            </h3>
             
             <div className="chart-container">
               <img
@@ -120,7 +191,7 @@ const BiasTest = () => {
             </div>
             
             <div className="prediction">
-              <p>Predict the next day's sentiment:</p>
+              <p>Predict the next {question.timeframe} sentiment:</p>
               <label>
                 <input
                   type="radio"

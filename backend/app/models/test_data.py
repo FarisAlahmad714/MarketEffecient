@@ -8,6 +8,7 @@ class TestData(BaseModel):
     
     asset_id = Column(Integer, ForeignKey("assets.id"))
     date = Column(Date)  # The date being tested
+    timeframe = Column(String, default="daily")  # 4h, daily, weekly, monthly
     setup_chart_path = Column(String)  # Path to the setup chart image
     outcome_chart_path = Column(String)  # Path to the outcome chart image
     correct_bias = Column(String)  # "Bullish" or "Bearish"
@@ -16,4 +17,4 @@ class TestData(BaseModel):
     asset = relationship("Asset", backref="test_data")
     
     def __repr__(self):
-        return f"<TestData {self.asset.symbol} - {self.date}: {self.correct_bias}>"
+        return f"<TestData {self.asset.symbol} - {self.date} ({self.timeframe}): {self.correct_bias}>"

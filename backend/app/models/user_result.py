@@ -10,9 +10,10 @@ class UserResult(BaseModel):
     user_prediction = Column(String)  # "Bullish" or "Bearish"
     is_correct = Column(Boolean)
     session_id = Column(String, index=True)  # To group results from a single test session
+    timeframe = Column(String, nullable=True)  # Store the timeframe for this test
     
     # Relationship
     test = relationship("TestData", backref="user_results")
     
     def __repr__(self):
-        return f"<UserResult {self.test.asset.symbol} - {self.test.date}: User:{self.user_prediction} Correct:{self.is_correct}>"
+        return f"<UserResult test_id:{self.test_id} - prediction:{self.user_prediction} - correct:{self.is_correct}>"

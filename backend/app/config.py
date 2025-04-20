@@ -1,12 +1,14 @@
 import os
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+from typing import Optional
 # Load environment variables
 load_dotenv()
 
 class Settings(BaseSettings):
     # API Keys
     ALPHA_VANTAGE_API_KEY: str = os.getenv("ALPHA_VANTAGE_API_KEY", "QRL7874F7OJAGJHY")  # Default from original app
+    COINGECKO_API_KEY: Optional[str] = os.getenv("COINGECKO_API_KEY", None)
     
     # Database settings
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db:5432/tradingapp")

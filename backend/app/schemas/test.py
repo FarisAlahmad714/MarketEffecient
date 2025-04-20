@@ -12,6 +12,7 @@ class TestQuestion(BaseModel):
     id: int
     setup_chart_url: str
     date: date
+    timeframe: str  # 4h, daily, weekly, monthly
     ohlc: OHLC
 
 class TestAnswerSubmit(BaseModel):
@@ -26,6 +27,7 @@ class TestAnswerResponse(BaseModel):
     setup_chart_url: str
     outcome_chart_url: str
     date: date
+    timeframe: str
     ohlc: OHLC
 
 class TestResult(BaseModel):
@@ -40,3 +42,8 @@ class TestSession(BaseModel):
     questions: List[TestQuestion]
     asset_symbol: str
     asset_name: str
+    selected_timeframe: str  # The timeframe selected for this test (or 'random')
+
+# Schema for timeframe selection
+class TimeframeSelection(BaseModel):
+    timeframe: str  # '4h', 'daily', 'weekly', 'monthly', 'random'

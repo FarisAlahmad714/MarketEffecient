@@ -16,7 +16,20 @@ const Results = () => {
     return null;
   }
   
+  // Function to get a user-friendly timeframe label
+  const getTimeframeLabel = (tf) => {
+    const labels = {
+      '4h': '4-Hour',
+      'daily': 'Daily',
+      'weekly': 'Weekly',
+      'monthly': 'Monthly',
+      'random': 'Mixed'
+    };
+    return labels[tf] || 'Unknown';
+  };
+  
   const handleTakeAnotherTest = () => {
+    // Pass the session ID for retake to exclude questions that were already answered
     navigate(`/test/${assetSymbol}`);
   };
   
@@ -39,7 +52,9 @@ const Results = () => {
       
       {results.answers.map((answer, index) => (
         <div key={answer.test_id} className={`result-item ${answer.is_correct ? 'correct' : 'incorrect'}`}>
-          <h3>Question {index + 1}</h3>
+          <h3>Question {index + 1}
+            <span className="timeframe-label"> - {getTimeframeLabel(answer.timeframe)} Timeframe</span>
+          </h3>
           
           <div className="charts-container">
             <div className="chart-wrapper">

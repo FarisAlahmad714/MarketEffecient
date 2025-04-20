@@ -20,6 +20,9 @@ COPY . .
 # Create directories for static files
 RUN mkdir -p app/static/crypto app/static/equities
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -28,5 +31,5 @@ ENV PYTHONUNBUFFERED=1
 # Expose port
 EXPOSE 8000
 
-# Start the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application with migrations
+CMD ["./start.sh"]
