@@ -6,7 +6,6 @@ import './AssetSelector.css';
 
 const AssetSelector = () => {
   const [assets, setAssets] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
@@ -15,7 +14,6 @@ const AssetSelector = () => {
   useEffect(() => {
     const fetchAssets = async () => {
       try {
-        setLoading(true);
         const data = await getAssets();
         
         // Group assets by type
@@ -28,10 +26,8 @@ const AssetSelector = () => {
         }, {});
         
         setAssets(grouped);
-        setLoading(false);
       } catch (err) {
         setError('Failed to load assets. Please try again later.');
-        setLoading(false);
         console.error('Error fetching assets:', err);
       }
     };
@@ -56,10 +52,6 @@ const AssetSelector = () => {
     setSelectedAsset({ symbol: 'random', name: 'Random Mix' });
     setShowModal(true);
   };
-
-  if (loading) {
-    return <div className="loading">Loading assets...</div>;
-  }
 
   if (error) {
     return <div className="error">{error}</div>;
@@ -167,7 +159,7 @@ const AssetSelector = () => {
             <h3>AAPL</h3>
             <p>Practice predicting Apple stock movements. A perfect choice for those interested in major tech companies and consumer electronics.</p>
             <div className="tool-info">
-              <i className="fas fa-info-circle"></i> Consumer Tech Analysis
+              <i className="fas fa-info-circle"></i> Apple Stock Analysis
             </div>
             <button onClick={() => handleAssetSelect('aapl', 'Apple')} className="quick-btn">
               Start Test <i className="fas fa-arrow-right"></i>
@@ -243,14 +235,13 @@ const AssetSelector = () => {
         </div>
       </div>
       
-      {/* Timeframe Selection Modal */}
-      <TimeframeModal 
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onSelect={handleTimeframeSelect}
-        assetSymbol={selectedAsset?.symbol}
-        assetName={selectedAsset?.name}
-      />
+      {showModal && selectedAsset && (
+        <TimeframeModal 
+          onClose={() => setShowModal(false)} 
+          onSelect={handleTimeframeSelect}
+          assetName={selectedAsset.name} 
+        />
+      )}
     </div>
   );
 };

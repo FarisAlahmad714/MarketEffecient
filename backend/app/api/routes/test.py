@@ -246,13 +246,41 @@ async def submit_test_answers(
         # Get the asset for this test
         test_asset = db.query(Asset).filter(Asset.id == test.asset_id).first()
         
-        # Get OHLC data for the date and timeframe
+        # Import PriceData model
         from app.models.price_data import PriceData
-        ohlc_data = db.query(PriceData).filter(
+        
+        # Get OHLC data for the setup chart date and timeframe
+        setup_ohlc_data = db.query(PriceData).filter(
             PriceData.asset_id == test.asset_id,
             PriceData.date == test.date,
             PriceData.timeframe == test.timeframe
         ).first()
+        
+        # Determine outcome date based on timeframe
+        outcome_date = None
+        if test.outcome_date:
+            outcome_date = test.outcome_date
+        
+        # Get OHLC data for the outcome chart
+        outcome_ohlc_data = None
+        if outcome_date:
+            outcome_ohlc_data = db.query(PriceData).filter(
+                PriceData.asset_id == test.asset_id,
+                PriceData.date == outcome_date,
+                PriceData.timeframe == test.timeframe
+            ).first()
+        
+        # If we don't have an explicit outcome date, try to get the next candle's data
+        if not outcome_ohlc_data and setup_ohlc_data:
+            # Get the next candle after the setup date
+            outcome_ohlc_data = db.query(PriceData).filter(
+                PriceData.asset_id == test.asset_id,
+                PriceData.date > test.date,
+                PriceData.timeframe == test.timeframe
+            ).order_by(PriceData.date).first()
+            
+            if outcome_ohlc_data:
+                outcome_date = outcome_ohlc_data.date
         
         # Save the result
         result = UserResult(
@@ -264,6 +292,16 @@ async def submit_test_answers(
         )
         db.add(result)
         
+        # Prepare the outcome OHLC data if available
+        outcome_ohlc = None
+        if outcome_ohlc_data:
+            outcome_ohlc = {
+                "open": outcome_ohlc_data.open,
+                "high": outcome_ohlc_data.high,
+                "low": outcome_ohlc_data.low,
+                "close": outcome_ohlc_data.close
+            }
+        
         # Add to results list
         results.append({
             "test_id": test.id,
@@ -273,13 +311,15 @@ async def submit_test_answers(
             "setup_chart_url": f"/static/{test.setup_chart_path}",
             "outcome_chart_url": f"/static/{test.outcome_chart_path}",
             "date": test.date,
+            "outcome_date": outcome_date,
             "timeframe": test.timeframe,
             "ohlc": {
-                "open": ohlc_data.open if ohlc_data else 0,
-                "high": ohlc_data.high if ohlc_data else 0,
-                "low": ohlc_data.low if ohlc_data else 0,
-                "close": ohlc_data.close if ohlc_data else 0
-            }
+                "open": setup_ohlc_data.open if setup_ohlc_data else 0,
+                "high": setup_ohlc_data.high if setup_ohlc_data else 0,
+                "low": setup_ohlc_data.low if setup_ohlc_data else 0,
+                "close": setup_ohlc_data.close if setup_ohlc_data else 0
+            },
+            "outcome_ohlc": outcome_ohlc
         })
     
     # Commit to database

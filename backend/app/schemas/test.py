@@ -27,8 +27,10 @@ class TestAnswerResponse(BaseModel):
     setup_chart_url: str
     outcome_chart_url: str
     date: date
+    outcome_date: Optional[date] = None
     timeframe: str
     ohlc: OHLC
+    outcome_ohlc: Optional[OHLC] = None
 
 class TestResult(BaseModel):
     score: int

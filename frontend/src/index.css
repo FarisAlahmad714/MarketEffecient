@@ -5,7 +5,8 @@ body {
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #f5f5f5;
+    background-color: #121212;
+    color: #f0f0f0;
   }
   
   code {
@@ -19,4 +20,12 @@ body {
   
   button {
     cursor: pointer;
+  }
+
+  /* Simple loading text styles */
+  .loading {
+    text-align: center;
+    margin: 50px auto;
+    font-size: 18px;
+    color: #888;
   }

@@ -110,6 +110,49 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+.ohlc-data {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.ohlc-data p {
+  margin: 0 0 0.5rem;
+  font-weight: bold;
+}
+
+.ohlc-data ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ohlc-data li {
+  font-family: monospace;
+  background-color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* New styles for outcome OHLC */
+.outcome-ohlc {
+  background-color: #fff3e0;
+  border-left: 3px solid #ff9800;
+}
+
+.outcome-ohlc p {
+  color: #e65100;
+}
+
+.outcome-ohlc li {
+  background-color: #fffaf3;
+}
+
 .prediction-result {
   background-color: #f8f9fa;
   padding: 1rem;

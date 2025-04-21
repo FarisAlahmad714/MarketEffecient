@@ -79,7 +79,7 @@
 }
 
 .quick-card {
-    height: 380px;
+    height: 450px !important;
     border-radius: 15px;
     overflow: hidden;
     position: relative;
@@ -147,9 +147,10 @@
     position: relative;
     z-index: 1;
     padding: 30px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+    
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
 }
 
 .quick-icon {
@@ -203,7 +204,7 @@
     color: #b0b0b0;
     margin-bottom: 20px;
     line-height: 1.5;
-    flex-grow: 1;
+    flex-grow: 0.5;
 }
 
 .tool-info {
@@ -246,7 +247,7 @@
 }
 
 .quick-btn {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     justify-content: space-between;
     padding: 12px 25px;
@@ -259,6 +260,7 @@
     border: none;
     cursor: pointer;
     width: 100%;
+    margin-top: auto !important;
 }
 
 .quick-card.btc .quick-btn {

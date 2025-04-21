@@ -1,9 +1,7 @@
 import React from 'react';
 import './TimeframeModal.css';
 
-const TimeframeModal = ({ isOpen, onClose, onSelect, assetSymbol, assetName }) => {
-  if (!isOpen) return null;
-
+const TimeframeModal = ({ onClose, onSelect, assetName }) => {
   const handleTimeframeSelect = (timeframe) => {
     onSelect(timeframe);
     onClose();

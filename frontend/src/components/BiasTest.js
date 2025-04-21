@@ -14,57 +14,30 @@ const BiasTest = () => {
   
   const [testData, setTestData] = useState(null);
   const [answers, setAnswers] = useState({});
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [actualAssetSymbol, setActualAssetSymbol] = useState('');
+  const [sessionId, setSessionId] = useState(null);
 
   useEffect(() => {
     const fetchTest = async () => {
       try {
-        setLoading(true);
+        console.log(`Fetching test for asset: ${assetSymbol} with timeframe: ${timeframe}`);
         
-        // If assetSymbol is 'random', use the cross-asset endpoint
+        let testData;
         if (assetSymbol === 'random') {
-          try {
-            console.log(`Fetching random cross-asset test with timeframe: ${timeframe}`);
-            const data = await getRandomCrossAssetTest(timeframe);
-            setTestData(data);
-            setActualAssetSymbol('random'); // Use 'random' as the symbol for submission
-            
-            // Initialize answers object
-            const initialAnswers = {};
-            data.questions.forEach(q => {
-              initialAnswers[q.id] = null;
-            });
-            setAnswers(initialAnswers);
-            
-            setLoading(false);
-          } catch (randomError) {
-            console.error('Error fetching random cross-asset test:', randomError);
-            setError(`Failed to load random test. Please try again later. (${randomError.message})`);
-            setLoading(false);
-          }
+          testData = await getRandomCrossAssetTest(timeframe);
+          setActualAssetSymbol('random'); // Use 'random' as the symbol for submission
         } else {
-          // For a specific asset
+          testData = await getTestForAsset(assetSymbol, timeframe);
           setActualAssetSymbol(assetSymbol);
-          console.log(`Fetching test for asset: ${assetSymbol} with timeframe: ${timeframe}`);
-          const data = await getTestForAsset(assetSymbol, timeframe);
-          setTestData(data);
-          
-          // Initialize answers object
-          const initialAnswers = {};
-          data.questions.forEach(q => {
-            initialAnswers[q.id] = null;
-          });
-          setAnswers(initialAnswers);
-          
-          setLoading(false);
         }
+        
+        setTestData(testData);
+        setSessionId(testData.session_id);
       } catch (err) {
         console.error('Detailed error fetching test:', err);
         setError(`Failed to load test. Please try again later. (${err.message})`);
-        setLoading(false);
       }
     };
 
@@ -90,23 +63,10 @@ const BiasTest = () => {
     
     try {
       setSubmitting(true);
+      const result = await submitTestAnswers(assetSymbol, sessionId, { answers });
       
-      // Format answers for API
-      const formattedAnswers = Object.entries(answers).map(([test_id, prediction]) => ({
-        test_id: parseInt(test_id),
-        prediction
-      }));
-      
-      console.log('Submitting answers for asset:', actualAssetSymbol);
-      const results = await submitTestAnswers(
-        actualAssetSymbol, 
-        testData.session_id, 
-        formattedAnswers
-      );
-      
-      // Navigate to results page with data
-      navigate(`/results/${actualAssetSymbol}`, { state: { results } });
-      
+      // Navigate to results page
+      navigate(`/results/${assetSymbol}?session_id=${sessionId}`);
     } catch (err) {
       console.error('Error submitting answers:', err);
       setError(`Failed to submit test answers. Please try again. (${err.message})`);
@@ -126,10 +86,6 @@ const BiasTest = () => {
     return labels[tf] || 'Unknown';
   };
 
-  if (loading) {
-    return <div className="loading">Loading test data...</div>;
-  }
-
   if (error) {
     return (
       <div className="error">
@@ -141,7 +97,13 @@ const BiasTest = () => {
     );
   }
 
-  if (!testData || !testData.questions || testData.questions.length === 0) {
+  // Show loading indicator while data is being fetched
+  if (!testData) {
+    return <div className="loading">Loading test data...</div>;
+  }
+
+  // Only show the "no questions" message if we have no data
+  if (!testData.questions || testData.questions.length === 0) {
     return (
       <div className="error">
         <p>No test questions available for this asset.</p>
