@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getTestForAsset, submitTestAnswers, getRandomCrossAssetTest } from '../services/api';
+import CandlestickChart from './CandlestickChart';
 import './BiasTest.css';
 
 const BiasTest = () => {
@@ -63,10 +64,20 @@ const BiasTest = () => {
     
     try {
       setSubmitting(true);
-      const result = await submitTestAnswers(assetSymbol, sessionId, { answers });
+      
+      // Convert answers from object format to array format expected by backend
+      const answersArray = Object.entries(answers).map(([testId, prediction]) => ({
+        test_id: parseInt(testId, 10),
+        prediction
+      }));
+      
+      console.log('Submitting answers:', answersArray);
+      
+      // Directly send the array, NOT wrapped in an object
+      const result = await submitTestAnswers(actualAssetSymbol, sessionId, answersArray);
       
       // Navigate to results page
-      navigate(`/results/${assetSymbol}?session_id=${sessionId}`);
+      navigate(`/results/${actualAssetSymbol}?session_id=${sessionId}`);
     } catch (err) {
       console.error('Error submitting answers:', err);
       setError(`Failed to submit test answers. Please try again. (${err.message})`);
@@ -135,11 +146,21 @@ const BiasTest = () => {
             </h3>
             
             <div className="chart-container">
-              <img
-                src={`http://localhost:8000${question.setup_chart_url}`}
-                alt={`Setup chart for ${testData.asset_symbol}`}
-                className="chart"
-              />
+              {question.ohlc_data ? (
+                <CandlestickChart 
+                  data={question.ohlc_data} 
+                  title={`Chart for ${testData.asset_name} - ${getTimeframeLabel(question.timeframe)}`}
+                  height={400}
+                />
+              ) : question.setup_chart_url ? (
+                <img
+                  src={`http://localhost:8000${question.setup_chart_url}`}
+                  alt={`Setup chart for ${testData.asset_symbol}`}
+                  className="chart"
+                />
+              ) : (
+                <div className="chart-error">No chart data available</div>
+              )}
             </div>
             
             <div className="ohlc-data">

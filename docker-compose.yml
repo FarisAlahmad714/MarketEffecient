@@ -10,6 +10,7 @@ services:
       - POSTGRES_DB=tradingapp
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./seed_data:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
@@ -75,24 +76,6 @@ services:
     #   - /app/node_modules
     ports:
       - "3000:3000"
-
-  # Database initialization service
-  init-db:
-    build: ./backend
-    depends_on:
-      migration:
-        condition: service_completed_successfully
-      backend:
-        condition: service_started
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tradingapp
-      - REDIS_URL=redis://redis:6379/0
-      - ALPHA_VANTAGE_API_KEY=QRL7874F7OJAGJHY
-    volumes:
-      - ./backend:/app
-      - backend_static:/app/app/static
-    command: >
-      sh -c "python -m app.init_db"
 
 volumes:
   postgres_data:

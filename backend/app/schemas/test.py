@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 
 class OHLC(BaseModel):
@@ -8,12 +8,21 @@ class OHLC(BaseModel):
     low: float
     close: float
 
+class OHLCPoint(BaseModel):
+    date: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
 class TestQuestion(BaseModel):
     id: int
-    setup_chart_url: str
+    setup_chart_url: Optional[str] = None
     date: date
     timeframe: str  # 4h, daily, weekly, monthly
     ohlc: OHLC
+    ohlc_data: Optional[List[OHLCPoint]] = None
 
 class TestAnswerSubmit(BaseModel):
     test_id: int
@@ -24,13 +33,15 @@ class TestAnswerResponse(BaseModel):
     user_prediction: str
     correct_answer: str
     is_correct: bool
-    setup_chart_url: str
-    outcome_chart_url: str
+    setup_chart_url: Optional[str] = None
+    outcome_chart_url: Optional[str] = None
     date: date
     outcome_date: Optional[date] = None
     timeframe: str
     ohlc: OHLC
     outcome_ohlc: Optional[OHLC] = None
+    ohlc_data: Optional[List[OHLCPoint]] = None
+    outcome_ohlc_data: Optional[List[OHLCPoint]] = None
 
 class TestResult(BaseModel):
     score: int

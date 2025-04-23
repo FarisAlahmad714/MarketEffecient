@@ -8,14 +8,44 @@ const api = axios.create({
   },
 });
 
+// Log request for debugging
+api.interceptors.request.use(request => {
+  console.log('API Request:', request.method.toUpperCase(), request.baseURL + request.url);
+  return request;
+});
+
+// Log response for debugging
+api.interceptors.response.use(
+  response => {
+    console.log('API Response:', response.status, response.config.url, response.data);
+    return response;
+  },
+  error => {
+    console.error('API Error:', error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // API functions
 export const getAssets = async () => {
   try {
+    console.log('Fetching assets from:', api.defaults.baseURL + '/assets');
     const response = await api.get('/assets');
+    
+    if (!response.data) {
+      console.error('Empty response data from assets endpoint');
+      return [];
+    }
+    
     return response.data;
   } catch (error) {
     console.error('Error fetching assets:', error);
-    throw error;
+    // Return empty array on error so application doesn't crash
+    return [];
   }
 };
 
@@ -91,7 +121,9 @@ export const getTestForAsset = async (assetSymbol, timeframe = 'random', session
 
 export const submitTestAnswers = async (assetSymbol, sessionId, answers) => {
   try {
+    console.log(`Submitting answers for ${assetSymbol} with session ${sessionId}:`, answers);
     const response = await api.post(`/test/${assetSymbol}?session_id=${sessionId}`, answers);
+    console.log('Submission response:', response.data);
     return response.data;
   } catch (error) {
     console.error(`Error submitting test answers for ${assetSymbol}:`, error);

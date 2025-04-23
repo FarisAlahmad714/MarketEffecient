@@ -10,8 +10,8 @@ class TestData(BaseModel):
     date = Column(Date)  # The date being tested
     outcome_date = Column(Date, nullable=True)  # The date of the outcome candle (if different from next day)
     timeframe = Column(String, default="daily")  # 4h, daily, weekly, monthly
-    setup_chart_path = Column(String)  # Path to the setup chart image
-    outcome_chart_path = Column(String)  # Path to the outcome chart image
+    setup_chart_path = Column(String, nullable=True)  # Path to the setup chart image
+    outcome_chart_path = Column(String, nullable=True)  # Path to the outcome chart image
     correct_bias = Column(String)  # "Bullish" or "Bearish"
     
     # Relationship

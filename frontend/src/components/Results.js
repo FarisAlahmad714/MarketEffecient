@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import CandlestickChart from './CandlestickChart';
 import './Results.css';
 
 const Results = () => {
@@ -12,10 +13,12 @@ const Results = () => {
   
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     if (!sessionId) {
       setError('No session ID found. Please start a new test.');
+      setLoading(false);
       return;
     }
     
@@ -26,19 +29,30 @@ const Results = () => {
           headers: { 'Content-Type': 'application/json' }
         });
         
+        console.log(`Fetching results for ${assetSymbol} with session ${sessionId}`);
         const response = await api.get(`/results/${assetSymbol}?session_id=${sessionId}`);
+        console.log('Results data:', response.data);
+        
         setResults(response.data);
+        setLoading(false);
       } catch (err) {
-        setError('Failed to load results. Please try again.');
         console.error('Error fetching results:', err);
+        if (err.response) {
+          console.error('Response status:', err.response.status);
+          console.error('Response data:', err.response.data);
+          setError(`Failed to load results: ${err.response.data.detail || err.message}`);
+        } else {
+          setError(`Failed to load results: ${err.message}`);
+        }
+        setLoading(false);
       }
     };
     
     fetchResults();
   }, [assetSymbol, sessionId]);
   
-  // If no results found, redirect to asset selector
-  if (!results && !error) {
+  // If still loading, show loading indicator
+  if (loading) {
     return <div className="loading">Loading results...</div>;
   }
   
@@ -46,6 +60,18 @@ const Results = () => {
     return (
       <div className="error">
         <p>{error}</p>
+        <button onClick={() => navigate('/')} className="back-button">
+          Back to Asset Selection
+        </button>
+      </div>
+    );
+  }
+  
+  // If no results found
+  if (!results) {
+    return (
+      <div className="error">
+        <p>No results found. Please try taking the test again.</p>
         <button onClick={() => navigate('/')} className="back-button">
           Back to Asset Selection
         </button>
@@ -95,20 +121,40 @@ const Results = () => {
           <div className="charts-container">
             <div className="chart-wrapper">
               <p>Setup Chart:</p>
-              <img
-                src={`http://localhost:8000${answer.setup_chart_url || ''}`}
-                alt="Setup Chart"
-                className="chart"
-              />
+              {answer.ohlc_data ? (
+                <CandlestickChart 
+                  data={answer.ohlc_data} 
+                  title={`Setup Chart - ${getTimeframeLabel(answer.timeframe)}`}
+                  height={350}
+                />
+              ) : answer.setup_chart_url ? (
+                <img
+                  src={`http://localhost:8000${answer.setup_chart_url}`}
+                  alt="Setup Chart"
+                  className="chart"
+                />
+              ) : (
+                <div className="chart-error">No setup chart data available</div>
+              )}
             </div>
             
             <div className="chart-wrapper">
               <p>Outcome Chart:</p>
-              <img
-                src={`http://localhost:8000${answer.outcome_chart_url || ''}`}
-                alt="Outcome Chart"
-                className="chart"
-              />
+              {answer.outcome_ohlc_data ? (
+                <CandlestickChart 
+                  data={answer.outcome_ohlc_data} 
+                  title={`Outcome Chart - ${getTimeframeLabel(answer.timeframe)}`}
+                  height={350}
+                />
+              ) : answer.outcome_chart_url ? (
+                <img
+                  src={`http://localhost:8000${answer.outcome_chart_url}`}
+                  alt="Outcome Chart"
+                  className="chart"
+                />
+              ) : (
+                <div className="chart-error">No outcome chart data available</div>
+              )}
             </div>
           </div>
           

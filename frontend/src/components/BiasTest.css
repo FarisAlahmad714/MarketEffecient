@@ -74,15 +74,32 @@
 }
 
 .chart-container {
-  margin-bottom: 20px;
-  text-align: center;
+  margin: 20px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f8f9fa;
 }
 
 .chart {
+  width: 100%;
   max-width: 100%;
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.candlestick-chart-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chart-error, .chart-loading {
+  padding: 40px;
+  text-align: center;
+  background-color: #f8f9fa;
+  color: #666;
+  font-style: italic;
+  border-radius: 8px;
 }
 
 .ohlc-data {

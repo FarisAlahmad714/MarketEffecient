@@ -321,38 +321,65 @@ async def fetch_alpha_vantage_data(asset: Asset, timeframe=TIMEFRAME_DAILY, days
         return None
 
 async def store_price_data(db: Session, asset: Asset, data: pd.DataFrame, timeframe=TIMEFRAME_DAILY):
-    """Store price data in the database with timeframe"""
-    for date, row in data.iterrows():
-        # Check if data for this date and timeframe already exists
-        existing = db.query(PriceData).filter(
+    """Store price data in the database with timeframe using bulk operations"""
+    if data.empty:
+        logger.warning(f"Empty DataFrame provided for {asset.symbol} ({timeframe}). Nothing to store.")
+        return
+    
+    # Convert all dates to date objects for consistency
+    date_list = [date.date() if hasattr(date, 'date') else date for date in data.index]
+    
+    # Fetch all existing records for this asset and timeframe in one query
+    existing_records = {
+        r.date: r for r in db.query(PriceData).filter(
             PriceData.asset_id == asset.id,
-            PriceData.date == date.date(),
-            PriceData.timeframe == timeframe
-        ).first()
+            PriceData.timeframe == timeframe,
+            PriceData.date.in_(date_list)
+        ).all()
+    }
+    
+    # Prepare bulk operations
+    to_insert = []
+    to_update = []
+    
+    # Process all records in one pass
+    for date, row in data.iterrows():
+        record_date = date.date() if hasattr(date, 'date') else date
         
-        if existing:
-            # Update existing
+        if record_date in existing_records:
+            # Update existing record
+            existing = existing_records[record_date]
             existing.open = row["Open"]
             existing.high = row["High"]
             existing.low = row["Low"]
             existing.close = row["Close"]
             existing.volume = row.get("Volume", None)
+            to_update.append(existing)
         else:
-            # Create new
-            price_data = PriceData(
-                asset_id=asset.id,
-                date=date.date(),
-                timeframe=timeframe,
-                open=row["Open"],
-                high=row["High"],
-                low=row["Low"],
-                close=row["Close"],
-                volume=row.get("Volume", None)
-            )
-            db.add(price_data)
+            # Create new record
+            to_insert.append({
+                "asset_id": asset.id,
+                "date": record_date,
+                "timeframe": timeframe,
+                "open": row["Open"],
+                "high": row["High"],
+                "low": row["Low"],
+                "close": row["Close"],
+                "volume": row.get("Volume", None)
+            })
     
-    db.commit()
-    logger.info(f"Stored {len(data)} price data points for {asset.symbol} ({timeframe}) in database")
+    # Execute operations in bulk
+    if to_insert:
+        db.execute(PriceData.__table__.insert(), to_insert)
+        logger.info(f"Bulk inserted {len(to_insert)} price data points for {asset.symbol} ({timeframe})")
+    
+    # Commit once for all changes
+    if to_insert or to_update:
+        db.commit()
+        total_changes = len(to_insert) + len(to_update)
+        logger.info(f"Stored {total_changes} price data points for {asset.symbol} ({timeframe}): {len(to_insert)} inserts, {len(to_update)} updates")
+    else:
+        logger.info(f"No new price data points to insert or update for {asset.symbol} ({timeframe})")
 
 async def get_sentiment(db: Session, asset: Asset, date, timeframe=TIMEFRAME_DAILY):
     """Determine bullish/bearish sentiment based on next day's price"""

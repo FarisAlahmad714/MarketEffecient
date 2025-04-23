@@ -3,15 +3,54 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import uuid
 import random
+import os
 
 from app.database import get_db
 from app.models.asset import Asset
 from app.models.test_data import TestData
 from app.models.user_result import UserResult
-from app.schemas import TestSession, TestAnswerSubmit, TestResult, TestQuestion, OHLC, TimeframeSelection
+from app.schemas import TestSession, TestAnswerSubmit, TestResult, TestQuestion, OHLC, TimeframeSelection, OHLCPoint
 from app.services.data_service import TIMEFRAME_4H, TIMEFRAME_DAILY, TIMEFRAME_WEEKLY, TIMEFRAME_MONTHLY, VALID_TIMEFRAMES
+from app.services import chart_service
+from app.config import settings
 
 router = APIRouter()
+
+async def get_or_generate_chart(test_data: TestData, db: Session):
+    """Check if chart exists and generate if missing"""
+    # Skip this function if we're using OHLC data instead
+    # Only for backward compatibility with existing tests
+    if not test_data.setup_chart_path or not test_data.outcome_chart_path:
+        return False
+        
+    # Check setup chart
+    setup_chart_path = f"{settings.CHARTS_DIR}/{test_data.setup_chart_path}"
+    outcome_chart_path = f"{settings.CHARTS_DIR}/{test_data.outcome_chart_path}"
+    
+    charts_generated = False
+    
+    # If either chart is missing, generate both
+    if not os.path.exists(setup_chart_path) or not os.path.exists(outcome_chart_path):
+        charts_generated = await chart_service.generate_chart_async(test_data, db)
+    
+    return charts_generated
+
+async def get_ohlc_data_for_test(test_data: TestData, db: Session):
+    """Get OHLC data for a test"""
+    # Get the asset for this test
+    asset = db.query(Asset).filter(Asset.id == test_data.asset_id).first()
+    if not asset:
+        return None, None
+        
+    # Get OHLC data
+    setup_ohlc, outcome_ohlc = await chart_service.get_ohlc_data(
+        db=db,
+        asset=asset,
+        date_n=test_data.date,
+        timeframe=test_data.timeframe
+    )
+    
+    return setup_ohlc, outcome_ohlc
 
 @router.get("/test/random", response_model=TestSession)
 async def get_random_cross_asset_test(
@@ -67,35 +106,48 @@ async def get_random_cross_asset_test(
     asset_ids = set()
     
     for test in selected_tests:
+        # For backward compatibility, check if charts need to be generated
+        if test.setup_chart_path and test.outcome_chart_path:
+            await get_or_generate_chart(test, db)
+        
         # Get the asset for this test
-        asset = next((a for a in assets if a.id == test.asset_id), None)
+        asset = db.query(Asset).filter(Asset.id == test.asset_id).first()
         if not asset:
             continue
             
         asset_ids.add(asset.id)
         
         # Get OHLC data for the date and timeframe
-        ohlc_data = db.query(asset.price_data).filter(
+        from app.models.price_data import PriceData
+        ohlc_data = db.query(PriceData).filter(
             PriceData.asset_id == asset.id,
             PriceData.date == test.date,
             PriceData.timeframe == test.timeframe
         ).first()
         
+        # Get OHLC data arrays for charts
+        setup_ohlc_array, _ = await get_ohlc_data_for_test(test, db)
+        
         if ohlc_data:
-            questions.append(
-                TestQuestion(
-                    id=test.id,
-                    setup_chart_url=f"/static/{test.setup_chart_path}",
-                    date=test.date,
-                    timeframe=test.timeframe,
-                    ohlc=OHLC(
-                        open=ohlc_data.open,
-                        high=ohlc_data.high,
-                        low=ohlc_data.low,
-                        close=ohlc_data.close
-                    )
-                )
+            # Prepare question with OHLC data
+            question = TestQuestion(
+                id=test.id,
+                date=test.date,
+                timeframe=test.timeframe,
+                ohlc=OHLC(
+                    open=ohlc_data.open,
+                    high=ohlc_data.high,
+                    low=ohlc_data.low,
+                    close=ohlc_data.close
+                ),
+                ohlc_data=setup_ohlc_array
             )
+            
+            # For backward compatibility, add chart URLs if they exist
+            if test.setup_chart_path:
+                question.setup_chart_url = f"/static/{test.setup_chart_path}"
+                
+            questions.append(question)
     
     # If we have test questions from different assets, use "random" as the symbol
     # Otherwise, if all questions are from a single asset, use that asset's symbol
@@ -177,6 +229,10 @@ async def get_test_for_asset(
     # Format the questions
     questions = []
     for test in selected_tests:
+        # For backward compatibility, check if charts need to be generated
+        if test.setup_chart_path and test.outcome_chart_path:
+            await get_or_generate_chart(test, db)
+        
         # Get OHLC data for the date and timeframe
         from app.models.price_data import PriceData
         ohlc_data = db.query(PriceData).filter(
@@ -185,156 +241,282 @@ async def get_test_for_asset(
             PriceData.timeframe == test.timeframe
         ).first()
         
+        # Get OHLC data arrays for charts
+        setup_ohlc_array, _ = await get_ohlc_data_for_test(test, db)
+        
         if ohlc_data:
-            questions.append(
-                TestQuestion(
-                    id=test.id,
-                    setup_chart_url=f"/static/{test.setup_chart_path}",
-                    date=test.date,
-                    timeframe=test.timeframe,
-                    ohlc=OHLC(
-                        open=ohlc_data.open,
-                        high=ohlc_data.high,
-                        low=ohlc_data.low,
-                        close=ohlc_data.close
-                    )
-                )
+            # Prepare question with OHLC data
+            question = TestQuestion(
+                id=test.id,
+                date=test.date,
+                timeframe=test.timeframe,
+                ohlc=OHLC(
+                    open=ohlc_data.open,
+                    high=ohlc_data.high,
+                    low=ohlc_data.low,
+                    close=ohlc_data.close
+                ),
+                ohlc_data=setup_ohlc_array
             )
+            
+            # For backward compatibility, add chart URLs if they exist
+            if test.setup_chart_path:
+                question.setup_chart_url = f"/static/{test.setup_chart_path}"
+                
+            questions.append(question)
     
     return TestSession(
         session_id=new_session_id,
         questions=questions,
-        asset_symbol=asset.symbol,
+        asset_symbol=asset_symbol,
         asset_name=asset.name,
         selected_timeframe=timeframe
     )
 
 @router.post("/test/{asset_symbol}", response_model=TestResult)
 async def submit_test_answers(
-    asset_symbol: str, 
-    answers: List[TestAnswerSubmit], 
-    session_id: str, 
+    asset_symbol: str,
+    answer_data: List[TestAnswerSubmit],
+    session_id: str,
     db: Session = Depends(get_db)
 ):
-    """Submit and grade predictions for a test"""
-    # Find the asset
-    asset = db.query(Asset).filter(Asset.symbol == asset_symbol.lower()).first()
-    if not asset:
-        raise HTTPException(status_code=404, detail=f"Asset with symbol {asset_symbol} not found")
+    """Submit test answers and get results"""
+    # Check if session exists by checking if any results exist for this session
+    existing_results = db.query(UserResult).filter(UserResult.session_id == session_id).all()
+    if existing_results:
+        # Results already exist, redirect to results page
+        result = await get_test_results(asset_symbol, session_id, db)
+        return result
+    
+    # Validate asset if not random
+    asset = None
+    if asset_symbol != "random":
+        asset = db.query(Asset).filter(Asset.symbol == asset_symbol.lower()).first()
+        if not asset:
+            raise HTTPException(status_code=404, detail=f"Asset with symbol {asset_symbol} not found")
     
     # Process each answer
     score = 0
-    results = []
+    total = len(answer_data)
+    answer_responses = []
     
-    for answer in answers:
+    for answer in answer_data:
         # Get the test data
         test = db.query(TestData).filter(TestData.id == answer.test_id).first()
         if not test:
             raise HTTPException(status_code=404, detail=f"Test with ID {answer.test_id} not found")
         
-        # For random tests, we don't check if the asset is correct
-        if asset_symbol != "random":
-            # Check if this is the correct asset
-            if test.asset_id != asset.id:
-                raise HTTPException(status_code=400, detail="Test does not belong to the specified asset")
-        
-        # Check if the answer is correct
-        is_correct = test.correct_bias == answer.prediction
-        if is_correct:
-            score += 1
-        
         # Get the asset for this test
         test_asset = db.query(Asset).filter(Asset.id == test.asset_id).first()
+        if not test_asset:
+            raise HTTPException(status_code=404, detail=f"Asset for test ID {answer.test_id} not found")
         
-        # Import PriceData model
+        # For backward compatibility, check if charts need to be generated
+        if test.setup_chart_path and test.outcome_chart_path:
+            await get_or_generate_chart(test, db)
+        
+        # Get OHLC data for the setup and outcome dates
         from app.models.price_data import PriceData
-        
-        # Get OHLC data for the setup chart date and timeframe
-        setup_ohlc_data = db.query(PriceData).filter(
+        setup_ohlc = db.query(PriceData).filter(
             PriceData.asset_id == test.asset_id,
             PriceData.date == test.date,
             PriceData.timeframe == test.timeframe
         ).first()
         
-        # Determine outcome date based on timeframe
+        # Get the next date after test.date for the outcome
+        next_day = db.query(PriceData).filter(
+            PriceData.asset_id == test.asset_id,
+            PriceData.date > test.date,
+            PriceData.timeframe == test.timeframe
+        ).order_by(PriceData.date).first()
+        
+        # Get OHLC data arrays
+        setup_ohlc_array, outcome_ohlc_array = await get_ohlc_data_for_test(test, db)
+        
+        outcome_ohlc = None
         outcome_date = None
-        if test.outcome_date:
-            outcome_date = test.outcome_date
+        if next_day:
+            outcome_ohlc = next_day
+            outcome_date = next_day.date
         
-        # Get OHLC data for the outcome chart
-        outcome_ohlc_data = None
-        if outcome_date:
-            outcome_ohlc_data = db.query(PriceData).filter(
-                PriceData.asset_id == test.asset_id,
-                PriceData.date == outcome_date,
-                PriceData.timeframe == test.timeframe
-            ).first()
+        # Check if the answer is correct
+        is_correct = answer.prediction == test.correct_bias
+        if is_correct:
+            score += 1
         
-        # If we don't have an explicit outcome date, try to get the next candle's data
-        if not outcome_ohlc_data and setup_ohlc_data:
-            # Get the next candle after the setup date
-            outcome_ohlc_data = db.query(PriceData).filter(
-                PriceData.asset_id == test.asset_id,
-                PriceData.date > test.date,
-                PriceData.timeframe == test.timeframe
-            ).order_by(PriceData.date).first()
-            
-            if outcome_ohlc_data:
-                outcome_date = outcome_ohlc_data.date
-        
-        # Save the result
-        result = UserResult(
+        # Create a user result record
+        user_result = UserResult(
+            session_id=session_id,
             test_id=test.id,
             user_prediction=answer.prediction,
-            is_correct=is_correct,
-            session_id=session_id,
-            timeframe=test.timeframe
+            is_correct=is_correct
         )
-        db.add(result)
+        db.add(user_result)
         
-        # Prepare the outcome OHLC data if available
-        outcome_ohlc = None
-        if outcome_ohlc_data:
-            outcome_ohlc = {
-                "open": outcome_ohlc_data.open,
-                "high": outcome_ohlc_data.high,
-                "low": outcome_ohlc_data.low,
-                "close": outcome_ohlc_data.close
-            }
+        # Prepare the answer response
+        answer_response = TestAnswerResponse(
+            test_id=test.id,
+            user_prediction=answer.prediction,
+            correct_answer=test.correct_bias,
+            is_correct=is_correct,
+            date=test.date,
+            outcome_date=outcome_date,
+            timeframe=test.timeframe,
+            ohlc_data=setup_ohlc_array,
+            outcome_ohlc_data=outcome_ohlc_array
+        )
         
-        # Add to results list
-        results.append({
-            "test_id": test.id,
-            "user_prediction": answer.prediction,
-            "correct_answer": test.correct_bias,
-            "is_correct": is_correct,
-            "setup_chart_url": f"/static/{test.setup_chart_path}",
-            "outcome_chart_url": f"/static/{test.outcome_chart_path}",
-            "date": test.date,
-            "outcome_date": outcome_date,
-            "timeframe": test.timeframe,
-            "ohlc": {
-                "open": setup_ohlc_data.open if setup_ohlc_data else 0,
-                "high": setup_ohlc_data.high if setup_ohlc_data else 0,
-                "low": setup_ohlc_data.low if setup_ohlc_data else 0,
-                "close": setup_ohlc_data.close if setup_ohlc_data else 0
-            },
-            "outcome_ohlc": outcome_ohlc
-        })
+        # For backward compatibility, add chart URLs if they exist
+        if test.setup_chart_path:
+            answer_response.setup_chart_url = f"/static/{test.setup_chart_path}"
+        if test.outcome_chart_path:
+            answer_response.outcome_chart_url = f"/static/{test.outcome_chart_path}"
+            
+        # Add OHLC data
+        if setup_ohlc:
+            answer_response.ohlc = OHLC(
+                open=setup_ohlc.open,
+                high=setup_ohlc.high,
+                low=setup_ohlc.low,
+                close=setup_ohlc.close
+            )
+        
+        if outcome_ohlc:
+            answer_response.outcome_ohlc = OHLC(
+                open=outcome_ohlc.open,
+                high=outcome_ohlc.high,
+                low=outcome_ohlc.low,
+                close=outcome_ohlc.close
+            )
+        
+        answer_responses.append(answer_response)
     
-    # Commit to database
+    # Commit the user results
     db.commit()
     
-    # For random tests, use "Random Mix" as the asset name
-    if asset_symbol == "random":
-        asset_name = "Random Mix"
-    else:
+    # Get the asset details for the response
+    asset_name = "Random Mix"
+    if asset:
         asset_name = asset.name
     
+    # Return the test result
     return TestResult(
         score=score,
-        total=len(answers),
-        answers=results,
+        total=total,
+        answers=answer_responses,
+        asset_symbol=asset_symbol,
+        asset_name=asset_name
+    )
+
+@router.get("/results/{asset_symbol}", response_model=TestResult)
+async def get_test_results(
+    asset_symbol: str,
+    session_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get results for a previously submitted test"""
+    # Get user results for this session
+    user_results = db.query(UserResult).filter(UserResult.session_id == session_id).all()
+    if not user_results:
+        raise HTTPException(status_code=404, detail=f"No results found for session ID {session_id}")
+    
+    # Process the results
+    score = 0
+    total = len(user_results)
+    answer_responses = []
+    
+    for result in user_results:
+        # Get the test data
+        test = db.query(TestData).filter(TestData.id == result.test_id).first()
+        if not test:
+            continue
+        
+        # Get the asset for this test
+        test_asset = db.query(Asset).filter(Asset.id == test.asset_id).first()
+        if not test_asset:
+            continue
+        
+        # For backward compatibility, check if charts need to be generated
+        if test.setup_chart_path and test.outcome_chart_path:
+            await get_or_generate_chart(test, db)
+        
+        # Get OHLC data for the setup and outcome dates
+        from app.models.price_data import PriceData
+        setup_ohlc = db.query(PriceData).filter(
+            PriceData.asset_id == test.asset_id,
+            PriceData.date == test.date,
+            PriceData.timeframe == test.timeframe
+        ).first()
+        
+        # Get the next date after test.date for the outcome
+        next_day = db.query(PriceData).filter(
+            PriceData.asset_id == test.asset_id,
+            PriceData.date > test.date,
+            PriceData.timeframe == test.timeframe
+        ).order_by(PriceData.date).first()
+        
+        # Get OHLC data arrays
+        setup_ohlc_array, outcome_ohlc_array = await get_ohlc_data_for_test(test, db)
+        
+        outcome_ohlc = None
+        outcome_date = None
+        if next_day:
+            outcome_ohlc = next_day
+            outcome_date = next_day.date
+        
+        if result.is_correct:
+            score += 1
+        
+        # Prepare the answer response
+        answer_response = TestAnswerResponse(
+            test_id=test.id,
+            user_prediction=result.user_prediction,
+            correct_answer=test.correct_bias,
+            is_correct=result.is_correct,
+            date=test.date,
+            outcome_date=outcome_date,
+            timeframe=test.timeframe,
+            ohlc_data=setup_ohlc_array,
+            outcome_ohlc_data=outcome_ohlc_array
+        )
+        
+        # For backward compatibility, add chart URLs if they exist
+        if test.setup_chart_path:
+            answer_response.setup_chart_url = f"/static/{test.setup_chart_path}"
+        if test.outcome_chart_path:
+            answer_response.outcome_chart_url = f"/static/{test.outcome_chart_path}"
+            
+        # Add OHLC data
+        if setup_ohlc:
+            answer_response.ohlc = OHLC(
+                open=setup_ohlc.open,
+                high=setup_ohlc.high,
+                low=setup_ohlc.low,
+                close=setup_ohlc.close
+            )
+        
+        if outcome_ohlc:
+            answer_response.outcome_ohlc = OHLC(
+                open=outcome_ohlc.open,
+                high=outcome_ohlc.high,
+                low=outcome_ohlc.low,
+                close=outcome_ohlc.close
+            )
+        
+        answer_responses.append(answer_response)
+    
+    # Determine the asset name
+    asset_name = "Random Mix"
+    if asset_symbol != "random":
+        asset = db.query(Asset).filter(Asset.symbol == asset_symbol.lower()).first()
+        if asset:
+            asset_name = asset.name
+    
+    # Return the test result
+    return TestResult(
+        score=score,
+        total=total,
+        answers=answer_responses,
         asset_symbol=asset_symbol,
         asset_name=asset_name
     )

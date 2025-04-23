@@ -95,7 +95,13 @@
 }
 
 .chart-wrapper {
+  flex: 1;
+  margin: 0 10px;
   text-align: center;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .chart-wrapper p {
@@ -104,10 +110,9 @@
 }
 
 .chart {
+  width: 100%;
   max-width: 100%;
-  height: auto;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-radius: 8px;
 }
 
 .ohlc-data {
@@ -198,4 +203,19 @@
 .action-button:hover {
   background-color: #1976d2;
   transform: translateY(-2px);
+}
+
+.candlestick-chart-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chart-error, .chart-loading {
+  padding: 40px;
+  text-align: center;
+  background-color: #f8f9fa;
+  color: #666;
+  font-style: italic;
+  border-radius: 8px;
 }

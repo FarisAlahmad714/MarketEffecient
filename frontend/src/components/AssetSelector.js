@@ -15,20 +15,54 @@ const AssetSelector = () => {
     const fetchAssets = async () => {
       try {
         const data = await getAssets();
+        console.log('Assets data received:', data);
         
-        // Group assets by type
-        const grouped = data.reduce((acc, asset) => {
-          if (!acc[asset.type]) {
-            acc[asset.type] = [];
-          }
-          acc[asset.type].push(asset);
-          return acc;
-        }, {});
-        
-        setAssets(grouped);
+        // Check if data is an array
+        if (Array.isArray(data)) {
+          // Group assets by type
+          const grouped = data.reduce((acc, asset) => {
+            if (!acc[asset.type]) {
+              acc[asset.type] = [];
+            }
+            acc[asset.type].push(asset);
+            return acc;
+          }, {});
+          
+          setAssets(grouped);
+        } else {
+          // If not an array, use hardcoded assets for now
+          console.error('Data is not an array, using hardcoded assets');
+          setAssets({
+            crypto: [
+              { symbol: 'btc', name: 'Bitcoin', type: 'crypto' },
+              { symbol: 'eth', name: 'Ethereum', type: 'crypto' },
+              { symbol: 'sol', name: 'Solana', type: 'crypto' }
+            ],
+            equity: [
+              { symbol: 'nvda', name: 'NVIDIA', type: 'equity' },
+              { symbol: 'aapl', name: 'Apple', type: 'equity' },
+              { symbol: 'tsla', name: 'Tesla', type: 'equity' },
+              { symbol: 'gld', name: 'Gold ETF', type: 'equity' }
+            ]
+          });
+        }
       } catch (err) {
-        setError('Failed to load assets. Please try again later.');
         console.error('Error fetching assets:', err);
+        // Fall back to hardcoded assets
+        setAssets({
+          crypto: [
+            { symbol: 'btc', name: 'Bitcoin', type: 'crypto' },
+            { symbol: 'eth', name: 'Ethereum', type: 'crypto' },
+            { symbol: 'sol', name: 'Solana', type: 'crypto' }
+          ],
+          equity: [
+            { symbol: 'nvda', name: 'NVIDIA', type: 'equity' },
+            { symbol: 'aapl', name: 'Apple', type: 'equity' },
+            { symbol: 'tsla', name: 'Tesla', type: 'equity' },
+            { symbol: 'gld', name: 'Gold ETF', type: 'equity' }
+          ]
+        });
+        setError('Using offline asset list. Some features may be limited.');
       }
     };
 
