@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.asset import Asset
 from app.models.test_data import TestData
 from app.models.user_result import UserResult
-from app.schemas import TestSession, TestAnswerSubmit, TestResult, TestQuestion, OHLC, TimeframeSelection, OHLCPoint
+from app.schemas import TestSession, TestAnswerSubmit, TestResult, TestQuestion, OHLC, TimeframeSelection, OHLCPoint, TestAnswerResponse
 from app.services.data_service import TIMEFRAME_4H, TIMEFRAME_DAILY, TIMEFRAME_WEEKLY, TIMEFRAME_MONTHLY, VALID_TIMEFRAMES
 from app.services import chart_service
 from app.config import settings
@@ -353,6 +353,9 @@ async def submit_test_answers(
         )
         db.add(user_result)
         
+        # Create a default OHLC object if setup_ohlc is None
+        default_ohlc = OHLC(open=0.0, high=0.0, low=0.0, close=0.0)
+
         # Prepare the answer response
         answer_response = TestAnswerResponse(
             test_id=test.id,
@@ -363,7 +366,13 @@ async def submit_test_answers(
             outcome_date=outcome_date,
             timeframe=test.timeframe,
             ohlc_data=setup_ohlc_array,
-            outcome_ohlc_data=outcome_ohlc_array
+            outcome_ohlc_data=outcome_ohlc_array,
+            ohlc=OHLC(
+                open=setup_ohlc.open if setup_ohlc else 0.0,
+                high=setup_ohlc.high if setup_ohlc else 0.0,
+                low=setup_ohlc.low if setup_ohlc else 0.0,
+                close=setup_ohlc.close if setup_ohlc else 0.0
+            )
         )
         
         # For backward compatibility, add chart URLs if they exist
@@ -372,23 +381,6 @@ async def submit_test_answers(
         if test.outcome_chart_path:
             answer_response.outcome_chart_url = f"/static/{test.outcome_chart_path}"
             
-        # Add OHLC data
-        if setup_ohlc:
-            answer_response.ohlc = OHLC(
-                open=setup_ohlc.open,
-                high=setup_ohlc.high,
-                low=setup_ohlc.low,
-                close=setup_ohlc.close
-            )
-        
-        if outcome_ohlc:
-            answer_response.outcome_ohlc = OHLC(
-                open=outcome_ohlc.open,
-                high=outcome_ohlc.high,
-                low=outcome_ohlc.low,
-                close=outcome_ohlc.close
-            )
-        
         answer_responses.append(answer_response)
     
     # Commit the user results
@@ -467,6 +459,9 @@ async def get_test_results(
         if result.is_correct:
             score += 1
         
+        # Create a default OHLC object if setup_ohlc is None
+        default_ohlc = OHLC(open=0.0, high=0.0, low=0.0, close=0.0)
+
         # Prepare the answer response
         answer_response = TestAnswerResponse(
             test_id=test.id,
@@ -477,7 +472,13 @@ async def get_test_results(
             outcome_date=outcome_date,
             timeframe=test.timeframe,
             ohlc_data=setup_ohlc_array,
-            outcome_ohlc_data=outcome_ohlc_array
+            outcome_ohlc_data=outcome_ohlc_array,
+            ohlc=OHLC(
+                open=setup_ohlc.open if setup_ohlc else 0.0,
+                high=setup_ohlc.high if setup_ohlc else 0.0,
+                low=setup_ohlc.low if setup_ohlc else 0.0,
+                close=setup_ohlc.close if setup_ohlc else 0.0
+            )
         )
         
         # For backward compatibility, add chart URLs if they exist
@@ -486,23 +487,6 @@ async def get_test_results(
         if test.outcome_chart_path:
             answer_response.outcome_chart_url = f"/static/{test.outcome_chart_path}"
             
-        # Add OHLC data
-        if setup_ohlc:
-            answer_response.ohlc = OHLC(
-                open=setup_ohlc.open,
-                high=setup_ohlc.high,
-                low=setup_ohlc.low,
-                close=setup_ohlc.close
-            )
-        
-        if outcome_ohlc:
-            answer_response.outcome_ohlc = OHLC(
-                open=outcome_ohlc.open,
-                high=outcome_ohlc.high,
-                low=outcome_ohlc.low,
-                close=outcome_ohlc.close
-            )
-        
         answer_responses.append(answer_response)
     
     # Determine the asset name

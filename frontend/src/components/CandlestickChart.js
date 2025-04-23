@@ -26,10 +26,10 @@ const CandlestickChart = ({ data, title, height = 400, width = '100%' }) => {
   const layout = {
     dragmode: 'zoom',
     margin: {
-      r: 10,
-      t: 40,
-      b: 40,
-      l: 60
+      r: 20,
+      t: 50,
+      b: 50,
+      l: 70
     },
     showlegend: false,
     xaxis: {
@@ -38,22 +38,35 @@ const CandlestickChart = ({ data, title, height = 400, width = '100%' }) => {
       rangeslider: {
         visible: false
       },
-      type: 'date'
+      type: 'date',
+      titlefont: { size: 12 }
     },
     yaxis: {
       autorange: true,
-      title: 'Price'
+      title: 'Price',
+      titlefont: { size: 12 }
     },
-    title: title || 'Price Chart',
+    title: {
+      text: title || 'Price Chart',
+      font: { size: 14 }
+    },
     plot_bgcolor: '#f8f9fa',
-    paper_bgcolor: '#f8f9fa'
+    paper_bgcolor: '#f8f9fa',
+    autosize: true
   };
 
   // Config options
   const config = {
     responsive: true,
     displayModeBar: true,
-    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+    displaylogo: false,
+    toImageButtonOptions: {
+      format: 'png',
+      filename: 'chart',
+      height: 500,
+      width: 700
+    }
   };
 
   return (

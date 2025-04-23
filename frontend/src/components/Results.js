@@ -125,7 +125,7 @@ const Results = () => {
                 <CandlestickChart 
                   data={answer.ohlc_data} 
                   title={`Setup Chart - ${getTimeframeLabel(answer.timeframe)}`}
-                  height={350}
+                  height={400}
                 />
               ) : answer.setup_chart_url ? (
                 <img
@@ -144,7 +144,7 @@ const Results = () => {
                 <CandlestickChart 
                   data={answer.outcome_ohlc_data} 
                   title={`Outcome Chart - ${getTimeframeLabel(answer.timeframe)}`}
-                  height={350}
+                  height={400}
                 />
               ) : answer.outcome_chart_url ? (
                 <img
