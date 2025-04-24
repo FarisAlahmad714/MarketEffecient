@@ -1,7 +1,10 @@
 .exam-practice-container {
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #1E1E2E;
+  color: #fff;
+  border-radius: 8px;
 }
 
 .exam-practice-container h2 {
@@ -11,62 +14,67 @@
 }
 
 .instructions {
-  margin-bottom: 1.5rem;
-  color: var(--text-secondary);
-  font-size: 1.1rem;
+  margin-bottom: 20px;
+  color: #d1d4dc;
+  font-size: 16px;
 }
 
 .exam-progress {
-  margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  margin-bottom: 20px;
 }
 
 .chart-indicator {
-  font-size: 1rem;
+  margin-right: 15px;
   font-weight: bold;
-  color: var(--text-primary);
-  min-width: 80px;
 }
 
 .chart-progress-bar {
-  flex: 1;
-  height: 10px;
-  background-color: var(--bg-secondary);
-  border-radius: 5px;
+  flex-grow: 1;
+  height: 8px;
+  background: #32324e;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .chart-progress {
   height: 100%;
-  background-color: var(--primary-color);
-  border-radius: 5px;
+  background: #6c5ce7;
   transition: width 0.3s ease;
 }
 
 .exam-container {
   display: flex;
-  gap: 2rem;
-  align-items: stretch;
+  gap: 20px;
 }
 
 .chart-section {
   flex: 1;
-  background-color: var(--bg-secondary);
-  border-radius: 10px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 10px var(--card-shadow);
+  padding: 15px;
+  background: #272741;
+  border-radius: 8px;
 }
 
 .chart-canvas {
-  position: relative;
   width: 100%;
   height: 500px;
-  background-color: white;
-  margin: 1rem 0;
-  border-radius: 5px;
+  background: #1a1a2e;
+  position: relative;
+  border-radius: 4px;
+  margin-bottom: 15px;
   overflow: hidden;
+}
+
+/* Trading View Chart Styles */
+.chart-canvas .trading-view-chart-container {
+  width: 100%;
+  height: 100%;
+}
+
+.chart-canvas .chart-container {
+  width: 100%;
+  height: 100%;
 }
 
 .chart-placeholder {
@@ -74,220 +82,222 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
-  background: repeating-linear-gradient(
-    45deg,
-    #f9f9f9,
-    #f9f9f9 10px,
-    #f0f0f0 10px,
-    #f0f0f0 20px
-  );
+  color: #6c7983;
 }
 
 .toolbar {
   display: flex;
-  gap: 0.5rem;
   flex-wrap: wrap;
-  margin-top: 1rem;
+  gap: 10px;
+  margin-bottom: 15px;
 }
 
 .tool-btn {
-  padding: 0.5rem 1rem;
+  padding: 8px 15px;
   border: none;
-  border-radius: 5px;
-  background-color: var(--primary-color);
+  border-radius: 4px;
+  background: #3949ab;
   color: white;
   cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .tool-btn:hover {
-  background-color: var(--primary-hover);
+  background: #283593;
 }
 
 .tool-btn.secondary {
-  background-color: var(--bg-accent);
-  color: var(--text-primary);
+  background: #546e7a;
 }
 
 .tool-btn.secondary:hover {
-  background-color: var(--border-color);
+  background: #455a64;
 }
 
 .tool-btn.submit {
-  background-color: #4CAF50;
+  background: #43a047;
   margin-left: auto;
 }
 
 .tool-btn.submit:hover {
-  background-color: #3d8b40;
+  background: #2e7d32;
 }
 
+/* Fibonacci Levels Panel */
 .fibonacci-levels {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background-color: var(--bg-primary);
-  border-radius: 5px;
-  border: 1px solid var(--border-color);
+  background: #2D2D44;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 15px;
 }
 
 .fibonacci-levels h4 {
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #d1d4dc;
 }
 
 .fib-levels-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 10px;
 }
 
 .fib-level {
   display: flex;
-  align-items: center;
-  padding: 0.25rem 0.5rem;
-  background-color: rgba(33, 150, 243, 0.1);
-  border-radius: 3px;
-  color: #2196F3;
+  justify-content: space-between;
+  width: calc(33% - 7px);
+  padding: 5px 10px;
+  background: #1E1E2E;
+  border-radius: 4px;
+  border-left: 3px solid gold;
 }
 
 .level-name {
   font-weight: bold;
-  margin-right: 0.5rem;
+  color: gold;
 }
 
+.level-price {
+  color: #d1d4dc;
+}
+
+/* Results Section */
 .results-section {
-  width: 0;
+  flex: 0 0 300px;
+  background: #272741;
+  border-radius: 8px;
+  display: none;
+  flex-direction: column;
   overflow: hidden;
-  background-color: var(--bg-secondary);
-  border-radius: 10px;
-  box-shadow: 0 4px 10px var(--card-shadow);
-  transition: width 0.3s ease, opacity 0.3s ease;
-  opacity: 0;
 }
 
 .results-section.visible {
-  width: 350px;
-  opacity: 1;
+  display: flex;
 }
 
 .results-header {
-  padding: 1rem;
-  background-color: var(--primary-color);
-  color: white;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
+  padding: 15px;
+  background: #32324e;
+  border-bottom: 1px solid #3a3a5d;
 }
 
 .results-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  color: #fff;
 }
 
 .results-content {
-  padding: 1.5rem;
+  flex-grow: 1;
+  padding: 15px;
+  overflow-y: auto;
 }
 
 .score-display {
   display: flex;
   justify-content: center;
-  margin: 1.5rem 0;
+  padding: 20px 0;
 }
 
 .score-circle {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background-color: #4CAF50;
+  background: #43a047;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .score-value {
-  font-size: 2rem;
+  font-size: 32px;
   font-weight: bold;
+  color: white;
 }
 
 .score-label {
-  font-size: 0.9rem;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.feedback-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #32324e;
+  border-radius: 4px;
 }
 
 .feedback-section h4 {
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-}
-
-.feedback-section p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.4;
+  margin-top: 0;
+  color: #d1d4dc;
 }
 
 .results-footer {
-  padding: 1rem;
-  background-color: var(--bg-primary);
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
+  padding: 15px;
+  background: #32324e;
+  border-top: 1px solid #3a3a5d;
+  display: flex;
+  justify-content: center;
 }
 
 .continue-btn {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: var(--primary-color);
-  color: white;
+  padding: 10px 20px;
   border: none;
-  border-radius: 5px;
-  font-weight: bold;
+  border-radius: 4px;
+  background: #6c5ce7;
+  color: white;
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-weight: bold;
+  transition: background 0.2s;
 }
 
 .continue-btn:hover {
-  background-color: var(--primary-hover);
+  background: #5b4bc4;
 }
 
+/* Loading overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
+  background: rgba(30, 30, 46, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s, visibility 0.3s;
+  pointer-events: none;
+  transition: opacity 0.3s;
 }
 
 .loading-overlay.active {
   opacity: 1;
-  visibility: visible;
+  pointer-events: all;
 }
 
 .loading-content {
-  text-align: center;
-  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .spinner {
   width: 50px;
   height: 50px;
-  border: 5px solid rgba(255, 255, 255, 0.3);
+  border: 5px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s ease-in-out infinite;
-  margin: 0 auto 1rem;
+  border-top-color: #6c5ce7;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
 }
 
 .loading-text {
-  font-size: 1.2rem;
+  color: white;
+  font-size: 18px;
 }
 
 @keyframes spin {
@@ -296,31 +306,17 @@
   }
 }
 
-/* Mobile responsiveness */
-@media (max-width: 992px) {
+@media (max-width: 768px) {
   .exam-container {
     flex-direction: column;
   }
   
   .results-section {
-    width: 100% !important;
-    height: 0;
-    transition: height 0.3s ease, opacity 0.3s ease;
-  }
-  
-  .results-section.visible {
-    height: auto;
-  }
-}
-
-@media (max-width: 768px) {
-  .toolbar {
-    justify-content: center;
-  }
-  
-  .tool-btn.submit {
-    margin-left: 0;
+    flex: none;
     width: 100%;
-    margin-top: 0.5rem;
+  }
+  
+  .fib-level {
+    width: 100%;
   }
 } 

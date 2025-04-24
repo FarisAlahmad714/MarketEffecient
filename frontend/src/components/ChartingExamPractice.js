@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getPracticeChart, validateAnswers } from '../services/chartingExamService';
 import './ChartingExamPractice.css';
 import DrawingTools from './DrawingTools';
+import TradingViewChart from './TradingViewChart';
 
 const ChartingExamPractice = () => {
   const { examType } = useParams();
@@ -19,6 +20,7 @@ const ChartingExamPractice = () => {
   const [progress, setProgress] = useState({ chartCount: 1, totalScore: 0 });
   const [result, setResult] = useState(null);
   const chartContainerRef = useRef(null);
+  const [chartReady, setChartReady] = useState(false);
   
   // Load chart data
   useEffect(() => {
@@ -48,7 +50,7 @@ const ChartingExamPractice = () => {
       // Get drawing data from drawing layer
       const drawingData = window.drawingLayer ? {
         drawings: window.drawingLayer.drawings.map(d => ({
-          type: d.tagName.toLowerCase(),
+          type: d.getAttribute('type') || d.tagName.toLowerCase(),
           attributes: Array.from(d.attributes).reduce((obj, attr) => {
             obj[attr.name] = attr.value;
             return obj;
@@ -90,11 +92,16 @@ const ChartingExamPractice = () => {
       
       // Clear result for next chart
       setResult(null);
+      setChartReady(false);
     } else {
       // Exam completed
       alert(`Section completed! Your total score: ${progress.totalScore + (result ? result.score : 0)}/500`);
       navigate('/charting-exams');
     }
+  };
+  
+  const handleChartReady = () => {
+    setChartReady(true);
   };
   
   if (loading) {
@@ -128,14 +135,22 @@ const ChartingExamPractice = () => {
             ref={chartContainerRef}
             className="chart-canvas"
           >
-            {/* Placeholder for chart */}
-            <div className="chart-placeholder">
-              <p>Chart display would be implemented here with a charting library</p>
-            </div>
+            {chartData && chartData.chart_data && (
+              <TradingViewChart 
+                data={{
+                  candles: chartData.chart_data,
+                  volume: []
+                }}
+                options={{ height: 500 }}
+                onChartReady={handleChartReady}
+              />
+            )}
+            
+            {/* Initialize drawing tools once chart is ready */}
+            {chartReady && chartContainerRef.current && (
+              <DrawingTools chartContainer={chartContainerRef.current} />
+            )}
           </div>
-          
-          {/* Initialize drawing tools */}
-          {chartContainerRef.current && <DrawingTools chartContainer={chartContainerRef.current} />}
           
           <div className="toolbar">
             {examType === 'gap_analysis' && (
@@ -143,6 +158,9 @@ const ChartingExamPractice = () => {
             )}
             <button id="line-tool" className="tool-btn">Line Tool</button>
             <button id="pointer-tool" className="tool-btn">Pointer</button>
+            {examType === 'fibonacci_retracement' && (
+              <button id="fibonacci-tool" className="tool-btn">Fibonacci Tool</button>
+            )}
             <button id="clear-btn" className="tool-btn secondary">Clear</button>
             <button id="undo-btn" className="tool-btn secondary">Undo</button>
             <button id="submit-btn" className="tool-btn submit" onClick={handleSubmit}>Submit Answer</button>

@@ -4,6 +4,9 @@ const DrawingTools = ({ chartContainer }) => {
   useEffect(() => {
     if (!chartContainer) return;
     
+    // Need to find the actual chart container inside the TradingViewChart component
+    const actualChartContainer = chartContainer.querySelector('.chart-container') || chartContainer;
+    
     class DrawingLayer {
       constructor(container) {
         this.container = container;
@@ -21,6 +24,9 @@ const DrawingTools = ({ chartContainer }) => {
         this.isDrawing = false;
         this.currentElement = null;
         this.drawings = [];
+        this.fibLevels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+        this.fibElements = [];
+        this.fibStartPoint = null;
 
         this.container.addEventListener('mousedown', this.startDrawing.bind(this));
         this.container.addEventListener('mousemove', this.draw.bind(this));
@@ -32,7 +38,7 @@ const DrawingTools = ({ chartContainer }) => {
       setTool(tool) {
         this.currentTool = tool;
         console.log('Tool selected:', tool);
-        this.container.style.cursor = tool === 'line' ? 'crosshair' : 'pointer';
+        this.container.style.cursor = tool === 'pointer' ? 'pointer' : 'crosshair';
       }
 
       startDrawing(e) {
@@ -51,6 +57,12 @@ const DrawingTools = ({ chartContainer }) => {
         } else if (this.currentTool === 'box') {
           this.startPoint = point;
           this.currentElement = this.createBox(point.x, point.y, 0, 0);
+          this.svg.appendChild(this.currentElement);
+        } else if (this.currentTool === 'fibonacci') {
+          this.fibStartPoint = point;
+          this.currentElement = this.createLine(point.x, point.y, point.x, point.y);
+          this.currentElement.setAttribute('stroke', 'gold');
+          this.currentElement.setAttribute('stroke-dasharray', '5,2');
           this.svg.appendChild(this.currentElement);
         }
       }
@@ -77,6 +89,12 @@ const DrawingTools = ({ chartContainer }) => {
           if (height < 0) {
             this.currentElement.setAttribute('y', point.y);
           }
+        } else if (this.currentTool === 'fibonacci' && this.fibStartPoint) {
+          this.currentElement.setAttribute('x2', point.x);
+          this.currentElement.setAttribute('y2', point.y);
+          
+          // Update Fibonacci price levels in UI
+          this.updateFibonacciLevelPrices(this.fibStartPoint, point);
         }
       }
 
@@ -84,12 +102,100 @@ const DrawingTools = ({ chartContainer }) => {
         if (!this.isDrawing) return;
         
         if (this.currentElement) {
-          this.drawings.push(this.currentElement);
+          if (this.currentTool === 'fibonacci' && this.fibStartPoint) {
+            const endPoint = {
+              x: parseFloat(this.currentElement.getAttribute('x2')),
+              y: parseFloat(this.currentElement.getAttribute('y2'))
+            };
+            
+            // Create the actual Fibonacci retracements
+            this.createFibonacciLevels(this.fibStartPoint, endPoint);
+            
+            // Clear the temporary line
+            this.svg.removeChild(this.currentElement);
+          } else {
+            this.drawings.push(this.currentElement);
+          }
         }
 
         this.isDrawing = false;
         this.currentElement = null;
         this.startPoint = null;
+        this.fibStartPoint = null;
+      }
+
+      createFibonacciLevels(startPoint, endPoint) {
+        // Create a group for all fibonacci elements
+        const fibGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        fibGroup.setAttribute('class', 'fibonacci-retracement');
+        
+        // Main trend line
+        const mainLine = this.createLine(startPoint.x, startPoint.y, endPoint.x, endPoint.y);
+        mainLine.setAttribute('stroke', 'gold');
+        mainLine.setAttribute('stroke-width', '2');
+        fibGroup.appendChild(mainLine);
+        
+        // Calculate direction and length
+        const isUptrend = startPoint.y > endPoint.y;
+        const height = Math.abs(startPoint.y - endPoint.y);
+        const width = Math.abs(startPoint.x - endPoint.x);
+        
+        // Create level lines
+        this.fibLevels.forEach(level => {
+          const y = isUptrend
+            ? endPoint.y + (height * level)
+            : startPoint.y + (height * level);
+          
+          // Create horizontal line for this level
+          const levelLine = this.createLine(
+            Math.min(startPoint.x, endPoint.x) - 20, 
+            y, 
+            Math.max(startPoint.x, endPoint.x) + 20, 
+            y
+          );
+          
+          levelLine.setAttribute('stroke', 'gold');
+          levelLine.setAttribute('stroke-width', '1');
+          levelLine.setAttribute('stroke-dasharray', '3,2');
+          levelLine.setAttribute('data-level', level.toString());
+          fibGroup.appendChild(levelLine);
+          
+          // Add label for this level
+          const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          label.setAttribute('x', Math.max(startPoint.x, endPoint.x) + 25);
+          label.setAttribute('y', y + 4);
+          label.setAttribute('fill', 'white');
+          label.setAttribute('font-size', '10px');
+          label.textContent = level.toString();
+          fibGroup.appendChild(label);
+        });
+        
+        // Add to drawings and append to SVG
+        this.svg.appendChild(fibGroup);
+        this.drawings.push(fibGroup);
+        
+        // Set the fibonacci tool type attribute for validation
+        fibGroup.setAttribute('type', 'fibonacci');
+        fibGroup.setAttribute('x1', startPoint.x);
+        fibGroup.setAttribute('y1', startPoint.y);
+        fibGroup.setAttribute('x2', endPoint.x);
+        fibGroup.setAttribute('y2', endPoint.y);
+      }
+      
+      updateFibonacciLevelPrices(startPoint, endPoint) {
+        // Calculate the price range
+        const range = Math.abs(startPoint.y - endPoint.y);
+        const basePrice = Math.min(startPoint.y, endPoint.y);
+        
+        // Update UI price levels
+        this.fibLevels.forEach(level => {
+          const priceElement = document.getElementById(`fib-price-${level * 1000}`);
+          if (priceElement) {
+            const levelPrice = basePrice + (range * level);
+            const formattedPrice = levelPrice.toFixed(2);
+            priceElement.textContent = formattedPrice;
+          }
+        });
       }
 
       createLine(x1, y1, x2, y2) {
@@ -137,6 +243,14 @@ const DrawingTools = ({ chartContainer }) => {
           this.svg.removeChild(this.svg.firstChild);
         }
         this.drawings = [];
+        
+        // Reset Fibonacci prices in UI
+        this.fibLevels.forEach(level => {
+          const priceElement = document.getElementById(`fib-price-${level * 1000}`);
+          if (priceElement) {
+            priceElement.textContent = '-';
+          }
+        });
       }
 
       undoLastDrawing() {
@@ -148,7 +262,7 @@ const DrawingTools = ({ chartContainer }) => {
     }
     
     // Initialize drawing layer and expose it globally for tool buttons
-    window.drawingLayer = new DrawingLayer(chartContainer);
+    window.drawingLayer = new DrawingLayer(actualChartContainer);
     
     // Set up event listeners for buttons
     document.getElementById('line-tool')?.addEventListener('click', 
@@ -157,6 +271,8 @@ const DrawingTools = ({ chartContainer }) => {
       () => window.drawingLayer.setTool('pointer'));
     document.getElementById('box-tool')?.addEventListener('click', 
       () => window.drawingLayer.setTool('box'));
+    document.getElementById('fibonacci-tool')?.addEventListener('click', 
+      () => window.drawingLayer.setTool('fibonacci'));
     document.getElementById('clear-btn')?.addEventListener('click', 
       () => window.drawingLayer.clearDrawings());
     document.getElementById('undo-btn')?.addEventListener('click', 
@@ -164,8 +280,8 @@ const DrawingTools = ({ chartContainer }) => {
     
     // Cleanup on unmount
     return () => {
-      if (chartContainer.contains(window.drawingLayer.svg)) {
-        chartContainer.removeChild(window.drawingLayer.svg);
+      if (actualChartContainer.contains(window.drawingLayer.svg)) {
+        actualChartContainer.removeChild(window.drawingLayer.svg);
       }
       
       // Remove event listeners to prevent memory leaks
@@ -175,6 +291,8 @@ const DrawingTools = ({ chartContainer }) => {
         () => window.drawingLayer.setTool('pointer'));
       document.getElementById('box-tool')?.removeEventListener('click', 
         () => window.drawingLayer.setTool('box'));
+      document.getElementById('fibonacci-tool')?.removeEventListener('click', 
+        () => window.drawingLayer.setTool('fibonacci'));
       document.getElementById('clear-btn')?.removeEventListener('click', 
         () => window.drawingLayer.clearDrawings());
       document.getElementById('undo-btn')?.removeEventListener('click', 

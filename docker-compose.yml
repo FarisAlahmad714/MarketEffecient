@@ -66,16 +66,22 @@ services:
 
   # React frontend
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
     depends_on:
       - backend
     environment:
       - REACT_APP_API_URL=http://localhost:8000/api
-    # volumes:
-    #   - ./frontend:/app
-    #   - /app/node_modules
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
+    # Use development mode for hot reloading
+    command: >
+      sh -c "npm start"
 
 volumes:
   postgres_data:
