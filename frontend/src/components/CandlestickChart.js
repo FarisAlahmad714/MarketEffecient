@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import Plot from 'react-plotly.js';
+import { ThemeContext } from '../context/ThemeContext';
 
 const CandlestickChart = ({ data, title, height = 400, width = '100%' }) => {
+  const { theme } = useContext(ThemeContext);
+  const isDarkMode = theme === 'dark';
+
   // Return early if no data is provided
   if (!data || data.length === 0) {
     return <div className="chart-loading">No chart data available</div>;
@@ -14,8 +18,8 @@ const CandlestickChart = ({ data, title, height = 400, width = '100%' }) => {
     high: data.map(item => item.high),
     low: data.map(item => item.low),
     close: data.map(item => item.close),
-    increasing: { line: { color: '#26a69a' } },
-    decreasing: { line: { color: '#ef5350' } },
+    increasing: { line: { color: isDarkMode ? '#66bb6a' : '#26a69a' } },
+    decreasing: { line: { color: isDarkMode ? '#ef5350' : '#ef5350' } },
     type: 'candlestick',
     xaxis: 'x',
     yaxis: 'y',
@@ -39,19 +43,23 @@ const CandlestickChart = ({ data, title, height = 400, width = '100%' }) => {
         visible: false
       },
       type: 'date',
-      titlefont: { size: 12 }
+      titlefont: { size: 12, color: isDarkMode ? '#e0e0e0' : '#333333' },
+      tickfont: { color: isDarkMode ? '#bbbbbb' : '#555555' },
+      gridcolor: isDarkMode ? '#333333' : '#eeeeee'
     },
     yaxis: {
       autorange: true,
       title: 'Price',
-      titlefont: { size: 12 }
+      titlefont: { size: 12, color: isDarkMode ? '#e0e0e0' : '#333333' },
+      tickfont: { color: isDarkMode ? '#bbbbbb' : '#555555' },
+      gridcolor: isDarkMode ? '#333333' : '#eeeeee'
     },
     title: {
       text: title || 'Price Chart',
-      font: { size: 14 }
+      font: { size: 14, color: isDarkMode ? '#e0e0e0' : '#333333' }
     },
-    plot_bgcolor: '#f8f9fa',
-    paper_bgcolor: '#f8f9fa',
+    plot_bgcolor: isDarkMode ? '#1e1e1e' : '#f8f9fa',
+    paper_bgcolor: isDarkMode ? '#1e1e1e' : '#f8f9fa',
     autosize: true
   };
 

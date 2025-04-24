@@ -372,7 +372,13 @@ async def submit_test_answers(
                 high=setup_ohlc.high if setup_ohlc else 0.0,
                 low=setup_ohlc.low if setup_ohlc else 0.0,
                 close=setup_ohlc.close if setup_ohlc else 0.0
-            )
+            ),
+            outcome_ohlc=OHLC(
+                open=next_day.open if next_day else 0.0,
+                high=next_day.high if next_day else 0.0,
+                low=next_day.low if next_day else 0.0,
+                close=next_day.close if next_day else 0.0
+            ) if next_day else None
         )
         
         # For backward compatibility, add chart URLs if they exist
@@ -478,7 +484,13 @@ async def get_test_results(
                 high=setup_ohlc.high if setup_ohlc else 0.0,
                 low=setup_ohlc.low if setup_ohlc else 0.0,
                 close=setup_ohlc.close if setup_ohlc else 0.0
-            )
+            ),
+            outcome_ohlc=OHLC(
+                open=next_day.open if next_day else 0.0,
+                high=next_day.high if next_day else 0.0,
+                low=next_day.low if next_day else 0.0,
+                close=next_day.close if next_day else 0.0
+            ) if next_day else None
         )
         
         # For backward compatibility, add chart URLs if they exist

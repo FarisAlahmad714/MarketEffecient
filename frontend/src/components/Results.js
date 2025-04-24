@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import CandlestickChart from './CandlestickChart';
+import { ThemeContext } from '../context/ThemeContext';
 import './Results.css';
 
 const Results = () => {
@@ -10,6 +11,7 @@ const Results = () => {
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const sessionId = queryParams.get('session_id');
+  const { theme } = useContext(ThemeContext);
   
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);

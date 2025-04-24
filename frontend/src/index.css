@@ -1,31 +1,113 @@
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    background-color: #121212;
-    color: #f0f0f0;
-  }
+/* Theme Variables */
+:root {
+  /* Light theme */
+  --bg-primary-light: #ffffff;
+  --bg-secondary-light: #f8f9fa;
+  --text-primary-light: #333333;
+  --text-secondary-light: #555555;
+  --text-muted-light: #666666;
+  --border-light: #eeeeee;
+  --card-shadow-light: rgba(0, 0, 0, 0.1);
+  --correct-color-light: #4caf50;
+  --incorrect-color-light: #f44336;
+  --primary-color-light: #2196f3;
+  --primary-hover-light: #1976d2;
+  --score-bg-light: #e8f5e9;
+  --score-text-light: #2e7d32;
+  --outcome-bg-light: #fff3e0;
+  --outcome-text-light: #e65100;
+  --outcome-border-light: #ff9800;
   
-  code {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-      monospace;
-  }
+  /* Dark theme */
+  --bg-primary-dark: #121212;
+  --bg-secondary-dark: #1e1e1e;
+  --text-primary-dark: #e0e0e0;
+  --text-secondary-dark: #bbbbbb;
+  --text-muted-dark: #999999;
+  --border-dark: #333333;
+  --card-shadow-dark: rgba(0, 0, 0, 0.4);
+  --correct-color-dark: #66bb6a;
+  --incorrect-color-dark: #ef5350;
+  --primary-color-dark: #42a5f5;
+  --primary-hover-dark: #2196f3;
+  --score-bg-dark: #1b5e20;
+  --score-text-dark: #81c784;
+  --outcome-bg-dark: #3e2723;
+  --outcome-text-dark: #ffb74d;
+  --outcome-border-dark: #ff9800;
   
-  h1, h2, h3, h4, h5, h6 {
-    margin-top: 0;
-  }
-  
-  button {
-    cursor: pointer;
-  }
+  /* Default theme (dark) */
+  --bg-primary: var(--bg-primary-dark);
+  --bg-secondary: var(--bg-secondary-dark);
+  --text-primary: var(--text-primary-dark);
+  --text-secondary: var(--text-secondary-dark);
+  --text-muted: var(--text-muted-dark);
+  --border: var(--border-dark);
+  --card-shadow: var(--card-shadow-dark);
+  --correct-color: var(--correct-color-dark);
+  --incorrect-color: var(--incorrect-color-dark);
+  --primary-color: var(--primary-color-dark);
+  --primary-hover: var(--primary-hover-dark);
+  --score-bg: var(--score-bg-dark);
+  --score-text: var(--score-text-dark);
+  --outcome-bg: var(--outcome-bg-dark);
+  --outcome-text: var(--outcome-text-dark);
+  --outcome-border: var(--outcome-border-dark);
+  --chart-bg: var(--bg-secondary-dark);
+  --chart-text: var(--text-primary-dark);
+}
 
-  /* Simple loading text styles */
-  .loading {
-    text-align: center;
-    margin: 50px auto;
-    font-size: 18px;
-    color: #888;
-  }
+/* Light theme class to apply to body */
+.light-theme {
+  --bg-primary: var(--bg-primary-light);
+  --bg-secondary: var(--bg-secondary-light);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  --text-muted: var(--text-muted-light);
+  --border: var(--border-light);
+  --card-shadow: var(--card-shadow-light);
+  --correct-color: var(--correct-color-light);
+  --incorrect-color: var(--incorrect-color-light);
+  --primary-color: var(--primary-color-light);
+  --primary-hover: var(--primary-hover-light);
+  --score-bg: var(--score-bg-light);
+  --score-text: var(--score-text-light);
+  --outcome-bg: var(--outcome-bg-light);
+  --outcome-text: var(--outcome-text-light);
+  --outcome-border: var(--outcome-border-light);
+  --chart-bg: var(--bg-secondary-light);
+  --chart-text: var(--text-primary-light);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Simple loading text styles */
+.loading {
+  text-align: center;
+  margin: 50px auto;
+  font-size: 18px;
+  color: #888;
+}
