@@ -8,7 +8,7 @@ import asyncio
 
 from app.database import get_db, engine
 from app.models import base
-from app.api.routes import assets, test
+from app.api.routes import assets, test, charting_exam
 from app.services import data_refresh
 
 # Create static directories if they don't exist
@@ -62,7 +62,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Include API routes
 app.include_router(assets.router, prefix="/api", tags=["assets"])
 app.include_router(test.router, prefix="/api", tags=["tests"])
-
+app.include_router(charting_exam.router, prefix="/api", tags=["charting_exams"])
 
 # Health check endpoint
 @app.get("/health", tags=["health"])

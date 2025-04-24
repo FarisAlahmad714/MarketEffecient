@@ -202,11 +202,7 @@ async def generate_outcome_chart(db: Session, asset: Asset, date_n, timeframe=TI
         logger.error(f"Error generating outcome chart for {asset.symbol} - {date_n} ({timeframe}): {str(e)}")
         return None
 
-# Commenting out the chart generation function as we're moving to client-side rendering
-# async def generate_charts(db: Session, asset: Asset, date_n, timeframe=TIMEFRAME_DAILY):
-#     """Generate setup and outcome charts for a specific date and timeframe"""
-#     # Function code commented out as we're moving to client-side rendering
-#     pass
+
 
 async def get_ohlc_data(db: Session, asset: Asset, date_n, timeframe=TIMEFRAME_DAILY):
     """Get OHLC data for a specific date and timeframe without generating charts"""
