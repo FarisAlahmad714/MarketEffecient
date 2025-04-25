@@ -3,7 +3,7 @@ import { createChart } from 'lightweight-charts';
 import './TradingViewChart.css';
 
 const TradingViewChart = ({ 
-  data = { candles: [], volume: [] }, 
+  data = [], 
   options = {},
   onChartReady = () => {} 
 }) => {
@@ -64,22 +64,6 @@ const TradingViewChart = ({
     });
     seriesRef.current.candlestick = candlestickSeries;
 
-    // Create volume series if needed
-    if (data.volume && data.volume.length) {
-      const volumeSeries = chart.addHistogramSeries({
-        color: '#26a69a',
-        priceFormat: {
-          type: 'volume',
-        },
-        priceScaleId: '',
-        scaleMargins: {
-          top: 0.8,
-          bottom: 0,
-        },
-      });
-      seriesRef.current.volume = volumeSeries;
-    }
-
     // Create resize handler
     const handleResize = () => {
       if (chartInstanceRef.current && chartContainerRef.current) {
@@ -112,11 +96,14 @@ const TradingViewChart = ({
   useEffect(() => {
     if (!chartInstanceRef.current || !seriesRef.current.candlestick) return;
     
+    // Get the candles array, handling both object format and direct array format
+    const candles = Array.isArray(data) ? data : (data.candles || []);
+    
     // Make sure candles exist and are valid before setting data
-    if (data && data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
+    if (candles && Array.isArray(candles) && candles.length > 0) {
       try {
         // Ensure all candle objects have required properties
-        const validCandles = data.candles.filter(candle => 
+        const validCandles = candles.filter(candle => 
           candle && 
           typeof candle.time === 'number' && 
           typeof candle.open === 'number' && 
@@ -126,10 +113,11 @@ const TradingViewChart = ({
         );
         
         if (validCandles.length > 0) {
+          console.log(`Setting chart data with ${validCandles.length} valid candles`);
           seriesRef.current.candlestick.setData(validCandles);
           
-          // Update volume data
-          if (data.volume && data.volume.length && seriesRef.current.volume) {
+          // Update volume data if available
+          if (data.volume && Array.isArray(data.volume) && data.volume.length > 0 && seriesRef.current.volume) {
             seriesRef.current.volume.setData(data.volume);
           }
       
@@ -170,13 +158,17 @@ const TradingViewChart = ({
     }
   }, [data, onChartReady]);
 
+  // Check if we have valid data to display
+  const hasValidData = Array.isArray(data) ? data.length > 0 : 
+                     (data && data.candles && Array.isArray(data.candles) && data.candles.length > 0);
+
   return (
     <div className="trading-view-chart-container">
       <div 
         ref={chartContainerRef} 
         className="chart-container"
       />
-      {(!data || !data.candles || !Array.isArray(data.candles) || data.candles.length === 0) && (
+      {!hasValidData && (
         <div className="chart-error-overlay">
           <div className="chart-error-message">
             <h3>Chart Data Unavailable</h3>

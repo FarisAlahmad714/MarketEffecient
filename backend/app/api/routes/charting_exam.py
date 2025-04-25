@@ -79,44 +79,120 @@ def fetch_chart_data(coin=None, timeframe=None, limit=100):
         else:
             coin = random.choice(all_coins)
     
+    # Normalize coin name (in case it's passed as a symbol)
+    coin_map = {
+        'btc': 'bitcoin',
+        'eth': 'ethereum',
+        'bnb': 'binancecoin',
+        'sol': 'solana',
+        'atom': 'cosmos',
+        'xrp': 'ripple',
+        'ltc': 'litecoin',
+        'link': 'chainlink'
+    }
+    coin = coin_map.get(coin.lower(), coin.lower())
+    
     try:
-        # Use caching to avoid repeated API calls
+        # Use caching more aggressively to avoid API calls
         cache_file = f"app/static/cache/{coin}_ohlc_365days.pkl"
+        
+        # Check if we have cached data and it's not too old (7 days)
+        use_cached = False
         if os.path.exists(cache_file):
-            with open(cache_file, 'rb') as f:
-                import pickle
-                raw_data = pickle.load(f)
-            logger.debug(f"Loaded {coin} data from cache")
-        else:
+            file_age = time.time() - os.path.getmtime(cache_file)
+            # Use cache if less than 7 days old
+            if file_age < 7 * 86400:
+                use_cached = True
+                logger.info(f"Using cached data for {coin} (age: {file_age/86400:.1f} days)")
+            
+            try:
+                with open(cache_file, 'rb') as f:
+                    import pickle
+                    raw_data = pickle.load(f)
+                logger.debug(f"Loaded {coin} data from cache")
+                
+                # If cached data is valid (has entries), use it even if old
+                if raw_data and len(raw_data) > 10:
+                    use_cached = True
+            except:
+                use_cached = False
+        
+        # Only call API if we don't have usable cached data
+        if not use_cached:
             days = 365  # Fetch 365 days of data
             url = f"https://api.coingecko.com/api/v3/coins/{coin}/ohlc?vs_currency=usd&days={days}"
-            headers = {"x-cg-demo-api-key": "CG-X9rKSiVeFyMS6FPbUCaFw4Lc"}  # Replace with your API key
             
-            response = requests.get(url, headers=headers, timeout=10)
+            # Use free API key if available, otherwise proceed without
+            api_key = os.environ.get('COINGECKO_API_KEY', "CG-X9rKSiVeFyMS6FPbUCaFw4Lc")
+            headers = {"x-cg-demo-api-key": api_key}
+            
+            # Add a delay to avoid rate limiting (especially important for multiple requests)
+            time.sleep(0.5)
+            
+            logger.info(f"Calling CoinGecko API for {coin} data")
+            response = requests.get(url, headers=headers, timeout=15)
+            
             if response.status_code != 200:
                 logger.error(f"API Error: {response.status_code} - {response.text}")
-                # Use fallback data instead of returning empty list
-                raw_data = generate_fallback_data(coin, days)
-            else:
-                raw_data = response.json()
-                if not raw_data:
-                    logger.error("No OHLC data received")
-                    # Use fallback data
-                    raw_data = generate_fallback_data(coin, days)
                 
-                # Cache the raw data
+                # Try to use cached data even if it's old, as a fallback
+                if os.path.exists(cache_file):
+                    logger.info(f"Using old cached data as fallback for {coin}")
+                    try:
+                        with open(cache_file, 'rb') as f:
+                            import pickle
+                            raw_data = pickle.load(f)
+                        if raw_data and len(raw_data) > 10:
+                            # Use this stale data as it's better than nothing
+                            logger.info(f"Successfully loaded old cache data for {coin}")
+                        else:
+                            # Generate fallback if cached data is invalid
+                            logger.info(f"Cached data invalid, using generated fallback for {coin}")
+                            raw_data = generate_fallback_data(coin, days)
+                    except:
+                        # Generate fallback if we can't read the cache
+                        logger.error(f"Failed to read cache, using generated fallback for {coin}")
+                        raw_data = generate_fallback_data(coin, days)
+                else:
+                    # Use fallback data if no cache exists
+                    logger.info(f"No cache exists, using generated fallback for {coin}")
+                    raw_data = generate_fallback_data(coin, days)
+            else:
+                # Successful API response
+                raw_data = response.json()
+                if not raw_data or len(raw_data) < 10:
+                    logger.error("API returned insufficient OHLC data")
+                    # Try to use any existing cache
+                    if os.path.exists(cache_file):
+                        try:
+                            with open(cache_file, 'rb') as f:
+                                import pickle
+                                old_data = pickle.load(f)
+                            if old_data and len(old_data) > 10:
+                                raw_data = old_data
+                                logger.info(f"Using old cache instead of insufficient API data")
+                            else:
+                                raw_data = generate_fallback_data(coin, days)
+                        except:
+                            raw_data = generate_fallback_data(coin, days)
+                    else:
+                        raw_data = generate_fallback_data(coin, days)
+                
+                # Cache successful API data
                 try:
                     with open(cache_file, 'wb') as f:
                         import pickle
                         pickle.dump(raw_data, f)
+                    logger.info(f"Successfully cached {coin} data")
                 except Exception as cache_err:
                     logger.error(f"Failed to cache data: {cache_err}")
         
-        # Format the candle data
+        # Format the candle data for the selected timeframe
         chart_data = format_candles(raw_data, timeframe)
         
         # Apply a limit but ensure we have at least 50 candles
         candles_to_take = min(max(50, limit), len(chart_data))
+        logger.info(f"Returning {candles_to_take} candles for {coin} ({timeframe})")
         return chart_data[-candles_to_take:], coin, timeframe
         
     except Exception as e:
@@ -125,6 +201,7 @@ def fetch_chart_data(coin=None, timeframe=None, limit=100):
         fallback_data = generate_fallback_data(coin, 100)
         chart_data = format_candles(fallback_data, timeframe)
         candles_to_take = min(max(50, limit), len(chart_data))
+        logger.warning(f"Using generated fallback data for {coin}")
         return chart_data[-candles_to_take:], coin, timeframe
 
 def format_candles(raw_data, timeframe):
@@ -827,30 +904,127 @@ def generate_random_candles(count=50, base_price=100):
     return candles
 
 def generate_fallback_data(coin, days):
-    """Generate synthetic data when API fails"""
-    logger.info(f"Generating fallback data for {coin}")
-    candles = []
-    base_price = {
-        'bitcoin': 40000,
-        'ethereum': 2200,
-        'binancecoin': 350,
-        'solana': 120,
-        'cosmos': 8,
-        'ripple': 0.5,
-        'litecoin': 70,
-        'chainlink': 12
-    }.get(coin, 100)
+    """
+    Generate high-quality synthetic market data when API fails
     
-    # Generate synthetic OHLC data for specified days
+    Creates realistic looking price action with:
+    - Proper trends and reversals
+    - Realistic volatility
+    - Appropriate price ranges for different assets
+    """
+    logger.info(f"Generating realistic fallback data for {coin}")
+    
+    # Base prices for different assets (approximate)
+    base_prices = {
+        'bitcoin': 45000,
+        'ethereum': 2500,
+        'binancecoin': 400,
+        'solana': 150,
+        'cosmos': 10,
+        'ripple': 0.6,
+        'litecoin': 80,
+        'chainlink': 15,
+        'ftx': 2,
+        'cardano': 0.5,
+        'polkadot': 7,
+        'polygon': 0.8,
+        'avalanche': 30,
+        'shiba-inu': 0.00001,
+        'dogecoin': 0.08,
+        # Add fallbacks for stock tickers
+        'aapl': 175,
+        'msft': 350,
+        'amzn': 150,
+        'nvda': 800,
+        'googl': 140,
+        'meta': 450,
+        'tsla': 200
+    }
+    
+    # Default to $100 if coin not in our map
+    base_price = base_prices.get(coin.lower(), 100)
+    
+    # Volatility settings for different assets
+    # Higher = more volatile price movements
+    volatility = {
+        'bitcoin': 0.03,
+        'ethereum': 0.04,
+        'binancecoin': 0.045,
+        'solana': 0.06,
+        'cosmos': 0.05,
+        'ripple': 0.04,
+        'litecoin': 0.035,
+        'chainlink': 0.055
+    }.get(coin.lower(), 0.04)  # Default 4% daily volatility
+    
+    # Start with current timestamp and work backwards
+    candles = []
     start_timestamp = int(time.time()) - (days * 86400)
+    
+    # Generate initial price near the base price with some randomness
+    current_price = base_price * (0.9 + random.random() * 0.2)  # ±10% from base
+    
+    # Create trend cycles (bull and bear trends)
+    trend_duration = random.randint(20, 40)  # Days per trend
+    trend_direction = random.choice([1, -1])  # Start with random trend
+    trend_strength = random.uniform(0.001, 0.003)  # Base daily trend
+    
+    # Generate daily candles with realistic price action
     for day in range(days):
-        timestamp = (start_timestamp + day * 86400) * 1000  # CoinGecko uses milliseconds
-        price_change = (random.random() - 0.5) * 0.05  # -2.5% to +2.5% daily change
-        day_open = base_price * (1 + day * 0.001 + random.random() * 0.1)  # Add some trend and randomness
-        day_close = day_open * (1 + price_change)
-        day_high = max(day_open, day_close) * (1 + random.random() * 0.03)
-        day_low = min(day_open, day_close) * (1 - random.random() * 0.03)
+        # Switch trend direction occasionally
+        if day % trend_duration == 0:
+            trend_direction *= -1
+            trend_strength = random.uniform(0.001, 0.003)
+            
+        # Add trend component to price
+        trend_change = current_price * trend_strength * trend_direction
         
+        # Add random component (volatility)
+        random_change = current_price * volatility * (random.random() - 0.5) * 2
+        
+        # Calculate day's OHLC values
+        day_change = trend_change + random_change
+        timestamp = (start_timestamp + day * 86400) * 1000  # Convert to milliseconds for CoinGecko format
+        
+        # Generate open, high, low, close with realistic relationships
+        if random.random() > 0.5:  # Random direction for the day
+            # Bullish day
+            day_open = current_price
+            day_close = current_price + day_change
+            
+            # High is above both open and close
+            day_high = max(day_open, day_close) * (1 + random.random() * 0.01)
+            
+            # Low is below both open and close
+            day_low = min(day_open, day_close) * (1 - random.random() * 0.01)
+        else:
+            # Bearish day
+            day_open = current_price
+            day_close = current_price + day_change
+            
+            # High is above both open and close
+            day_high = max(day_open, day_close) * (1 + random.random() * 0.01)
+            
+            # Low is below both open and close
+            day_low = min(day_open, day_close) * (1 - random.random() * 0.01)
+        
+        # Create occasional spikes or crashes (2% chance)
+        if random.random() < 0.02:
+            spike_direction = random.choice([1, -1])
+            spike_magnitude = random.uniform(0.05, 0.15)  # 5-15% spike
+            
+            if spike_direction > 0:  # Spike up
+                day_high = day_high * (1 + spike_magnitude)
+            else:  # Crash down
+                day_low = day_low * (1 - spike_magnitude)
+        
+        # Ensure prices are positive
+        day_open = max(0.000001, day_open)
+        day_close = max(0.000001, day_close)
+        day_high = max(day_open, day_close, day_high)
+        day_low = min(day_open, day_close, day_low, day_high * 0.9)  # Ensure low isn't zero
+        
+        # Add the candle in CoinGecko format [timestamp, open, high, low, close]
         candles.append([
             timestamp,
             day_open,
@@ -858,5 +1032,8 @@ def generate_fallback_data(coin, days):
             day_low,
             day_close
         ])
+        
+        # Update current price for next iteration
+        current_price = day_close
     
     return candles 

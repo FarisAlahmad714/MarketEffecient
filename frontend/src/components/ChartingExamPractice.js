@@ -112,99 +112,98 @@ const ChartingExamPractice = () => {
         setLoading(true);
         // Convert hyphenated exam types to underscore format if needed
         const normalizedExamType = examType.replace(/-/g, '_');
-        const response = await api.get(`/charting_exam/${normalizedExamType}`);
+        const params = new URLSearchParams(window.location.search);
+        const section = params.get('section') || '';
         
-        // The API returns chart_data directly, not nested in a charts array
-        if (response.data && response.data.chart_data && Array.isArray(response.data.chart_data)) {
-          // Create a single chart entry with the data from the API
-          const chartEntry = {
-            data: response.data.chart_data,
-            symbol: response.data.symbol || 'UNKNOWN',
-            timeframe: response.data.timeframe || '1d',
-            instructions: response.data.instructions || ''
-          };
+        console.log(`Fetching chart data for ${normalizedExamType} exam, section: ${section}`);
+        
+        // Construct the correct endpoint based on section parameter
+        let endpoint = `/charting_exam/${normalizedExamType}`;
+        if (section) {
+          endpoint = `${endpoint}/practice?section=${section}`;
+        }
+        
+        const response = await api.get(endpoint);
+        
+        // Check if we got valid data and properly handle the different response formats
+        if (response.data) {
+          let chartEntry;
           
-          // Check if data array is empty
-          if (response.data.chart_data.length === 0) {
-            console.warn('API returned empty chart data array, generating fallback data');
-            // Generate fallback data
-            chartEntry.data = generateFallbackData(chartEntry.symbol, 100);
+          // Handle the response structure which might vary based on endpoint
+          if (Array.isArray(response.data.chart_data)) {
+            // Direct chart_data array format
+            chartEntry = {
+              data: response.data.chart_data,
+              symbol: response.data.symbol || 'UNKNOWN',
+              timeframe: response.data.timeframe || '1d',
+              instructions: response.data.instructions || ''
+            };
+          } else if (response.data.chart_data) {
+            // Object with nested chart_data property
+            chartEntry = {
+              data: response.data.chart_data,
+              symbol: response.data.symbol || 'UNKNOWN',
+              timeframe: response.data.timeframe || '1d',
+              instructions: response.data.instructions || ''
+            };
+          } else if (Array.isArray(response.data)) {
+            // Direct array of candles
+            chartEntry = {
+              data: response.data,
+              symbol: 'UNKNOWN',
+              timeframe: '1d',
+              instructions: 'Mark the significant patterns on this chart.'
+            };
           }
           
-          setChartData([chartEntry]); // Put the single chart in an array
-          
-          // Initialize answers array with a single empty entry
-          const initialAnswers = [{ 
-            drawings: [],
-            score: 0,
-            feedback: ''
-          }];
-          setAnswers(initialAnswers);
-          setLoading(false);
-        } else {
-          console.warn('Response contained no chart data, retrying...');
-          // Try one more time with a slight delay
-          setTimeout(async () => {
-            try {
-              const retryResponse = await api.get(`/charting_exam/${normalizedExamType}`);
+          if (chartEntry && Array.isArray(chartEntry.data) && chartEntry.data.length > 0) {
+            console.log(`Successfully loaded chart data: ${chartEntry.data.length} candles`);
+            setChartData([chartEntry]); // Put the single chart in an array
+            
+            // Initialize answers array with a single empty entry
+            const initialAnswers = [{ 
+              drawings: [],
+              score: 0,
+              feedback: ''
+            }];
+            setAnswers(initialAnswers);
+            setLoading(false);
+            return; // Exit if we successfully loaded data
+          }
+        }
+        
+        // If we got here, there was insufficient chart data
+        console.warn('Response contained insufficient chart data, retrying with delay...');
+        
+        // Attempt retry with a delay to avoid immediate rate limit issues
+        setTimeout(async () => {
+          try {
+            // Try a second time with different endpoint if needed
+            const retryEndpoint = `/charting_exam/${normalizedExamType}/practice`;
+            const retryResponse = await api.get(retryEndpoint);
+            
+            if (retryResponse.data && 
+                ((Array.isArray(retryResponse.data.chart_data) && retryResponse.data.chart_data.length > 0) ||
+                 (Array.isArray(retryResponse.data) && retryResponse.data.length > 0))) {
               
-              if (retryResponse.data && retryResponse.data.chart_data && Array.isArray(retryResponse.data.chart_data)) {
-                const chartEntry = {
+              let chartEntry;
+              if (retryResponse.data.chart_data) {
+                chartEntry = {
                   data: retryResponse.data.chart_data,
                   symbol: retryResponse.data.symbol || 'UNKNOWN',
                   timeframe: retryResponse.data.timeframe || '1d',
                   instructions: retryResponse.data.instructions || ''
                 };
-                
-                // Check if data array is empty
-                if (retryResponse.data.chart_data.length === 0) {
-                  console.warn('API retry returned empty chart data array, generating fallback data');
-                  // Generate fallback data
-                  chartEntry.data = generateFallbackData(chartEntry.symbol, 100);
-                }
-                
-                setChartData([chartEntry]);
-                
-                const initialAnswers = [{ 
-                  drawings: [],
-                  score: 0,
-                  feedback: ''
-                }];
-                setAnswers(initialAnswers);
-                setLoading(false);
               } else {
-                // Generate fallback data if all attempts fail
-                const fallbackChartEntry = {
-                  data: generateFallbackData('FALLBACK', 100),
-                  symbol: 'FALLBACK',
+                chartEntry = {
+                  data: retryResponse.data,
+                  symbol: 'UNKNOWN',
                   timeframe: '1d',
-                  instructions: 'Fallback chart - API failed to return data'
+                  instructions: 'Mark the significant patterns on this chart.'
                 };
-                
-                setChartData([fallbackChartEntry]);
-                
-                const initialAnswers = [{ 
-                  drawings: [],
-                  score: 0,
-                  feedback: ''
-                }];
-                setAnswers(initialAnswers);
-                setLoading(false);
-                
-                console.warn('Using fallback chart data due to API failures');
               }
-            } catch (retryErr) {
-              console.error('Error on retry:', retryErr);
               
-              // Generate fallback data if all attempts fail
-              const fallbackChartEntry = {
-                data: generateFallbackData('ERROR', 100),
-                symbol: 'ERROR',
-                timeframe: '1d',
-                instructions: 'Error fetching chart data - using fallback'
-              };
-              
-              setChartData([fallbackChartEntry]);
+              setChartData([chartEntry]);
               
               const initialAnswers = [{ 
                 drawings: [],
@@ -213,29 +212,19 @@ const ChartingExamPractice = () => {
               }];
               setAnswers(initialAnswers);
               setLoading(false);
+              console.log('Successfully loaded chart data on retry');
+            } else {
+              // If both attempts fail, use fallback data
+              handleFallbackData();
             }
-          }, 2000);
-        }
+          } catch (retryErr) {
+            console.error('Error on retry, using fallback data', retryErr);
+            handleFallbackData();
+          }
+        }, 1500); // 1.5 second delay before retry
       } catch (err) {
         console.error('Error fetching chart data:', err);
-        
-        // Generate fallback data if API call fails completely
-        const fallbackChartEntry = {
-          data: generateFallbackData('ERROR', 100),
-          symbol: 'ERROR',
-          timeframe: '1d',
-          instructions: 'Error fetching chart data - using fallback'
-        };
-        
-        setChartData([fallbackChartEntry]);
-        
-        const initialAnswers = [{ 
-          drawings: [],
-          score: 0,
-          feedback: ''
-        }];
-        setAnswers(initialAnswers);
-        setLoading(false);
+        handleFallbackData();
       }
     };
     
@@ -283,6 +272,31 @@ const ChartingExamPractice = () => {
     
     return data;
   };
+  
+  // Handle fallback data generation when API fails
+  const handleFallbackData = useCallback(() => {
+    console.log('Using fallback data due to API failure');
+    const fallbackSymbol = 'FALLBACK';
+    const fallbackData = generateFallbackData(fallbackSymbol, 100);
+    
+    const chartEntry = {
+      data: fallbackData,
+      symbol: fallbackSymbol,
+      timeframe: '1d',
+      instructions: 'This is simulated data for practice. Mark the significant patterns on this chart.'
+    };
+    
+    setChartData([chartEntry]);
+    
+    const initialAnswers = [{ 
+      drawings: [],
+      score: 0,
+      feedback: ''
+    }];
+    setAnswers(initialAnswers);
+    setLoading(false);
+    setError(null);
+  }, []);
   
   // Handle drawing changes
   const handleDrawingsChange = useCallback((newDrawings) => {
@@ -375,52 +389,85 @@ const ChartingExamPractice = () => {
     }
   }, [examType]);
   
-  // Prepare chart data for TradingViewChart
+  // Update prepare chart data function to ensure proper formatting
   const prepareChartData = useCallback((rawChartData) => {
     if (!rawChartData || !Array.isArray(rawChartData) || rawChartData.length === 0) {
       console.error('Invalid or empty chart data received');
-      // Generate fallback data instead of returning empty
       const fallbackData = generateFallbackData('FALLBACK', 100);
-      return { candles: fallbackData, volume: [] };
+      return fallbackData;
     }
 
     try {
       // Ensure each candle has the required fields and correct types
       const validCandles = rawChartData.map(candle => {
-        // Check if the candle object has the required properties
-        if (!candle || typeof candle.time !== 'number' || 
-            typeof candle.open !== 'number' || 
-            typeof candle.high !== 'number' || 
-            typeof candle.low !== 'number' || 
-            typeof candle.close !== 'number') {
-          
-          // Log invalid candle data for debugging
-          console.warn('Invalid candle format detected:', candle);
-          return null;
+        // If the data is already in the correct format, just return it
+        if (candle && 
+            typeof candle.time === 'number' && 
+            typeof candle.open === 'number' && 
+            typeof candle.high === 'number' && 
+            typeof candle.low === 'number' && 
+            typeof candle.close === 'number') {
+          return candle;
         }
         
+        // Log invalid candle data for debugging
+        console.warn('Invalid candle format detected, attempting to transform:', candle);
+        
+        // Try to transform from API format to chart format
+        if (Array.isArray(candle) && candle.length >= 5) {
+          return {
+            time: typeof candle[0] === 'number' ? Math.floor(candle[0] / 1000) : Date.parse(candle[0]) / 1000,
+            open: Number(candle[1]),
+            high: Number(candle[2]),
+            low: Number(candle[3]),
+            close: Number(candle[4])
+          };
+        }
+        
+        // Convert string values to numbers if necessary
         return {
-          time: candle.time,
-          open: candle.open,
-          high: candle.high,
-          low: candle.low,
-          close: candle.close
+          time: typeof candle.time === 'string' ? parseInt(candle.time, 10) : candle.time,
+          open: typeof candle.open === 'string' ? parseFloat(candle.open) : candle.open,
+          high: typeof candle.high === 'string' ? parseFloat(candle.high) : candle.high,
+          low: typeof candle.low === 'string' ? parseFloat(candle.low) : candle.low,
+          close: typeof candle.close === 'string' ? parseFloat(candle.close) : candle.close
         };
-      }).filter(candle => candle !== null);
+      }).filter(candle => 
+        candle !== null && 
+        !isNaN(candle.time) && 
+        !isNaN(candle.open) && 
+        !isNaN(candle.high) && 
+        !isNaN(candle.low) && 
+        !isNaN(candle.close)
+      );
 
       if (validCandles.length === 0) {
         console.warn('No valid candles after filtering');
-        // Generate fallback data if all candles were invalid
-        return { candles: generateFallbackData('FALLBACK', 100), volume: [] };
+        return generateFallbackData('FALLBACK', 100);
       }
 
-      return { candles: validCandles, volume: [] };
+      console.log(`Prepared ${validCandles.length} valid candles for chart rendering`);
+      return validCandles;
     } catch (error) {
       console.error('Error formatting chart data:', error);
-      // Generate fallback data on error
-      return { candles: generateFallbackData('ERROR', 100), volume: [] };
+      return generateFallbackData('ERROR', 100);
     }
   }, []);
+  
+  // Render error message if any
+  const renderError = () => {
+    if (!error) return null;
+    
+    return (
+      <div className="error-notification">
+        <div className="error-content">
+          <span className="error-icon">⚠️</span>
+          <span className="error-message">{error}</span>
+          <button className="error-close" onClick={() => setError(null)}>×</button>
+        </div>
+      </div>
+    );
+  };
   
   // Show loading spinner while chart data is loading
   if (loading) {
@@ -497,89 +544,113 @@ const ChartingExamPractice = () => {
   
   return (
     <div className="charting-exam-practice">
-      <div className="exam-header">
-        <h2>{examTypeName} - Chart {chartIndex + 1} of {chartData.length}</h2>
-        <div className="progress-indicator">
-          {chartData.map((_, index) => (
-            <div 
-              key={index} 
-              className={`progress-dot ${index === chartIndex ? 'active' : ''} ${answers[index]?.score ? 'completed' : ''}`}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Show error notification if present */}
+      {renderError()}
       
-      {showTutorial && (
+      {showTutorial ? (
         <div className="tutorial-overlay">
           <div className="tutorial-content">
-            <h2>{tutorialContent[examType]?.title || 'Tutorial'}</h2>
-            <div dangerouslySetInnerHTML={{ __html: tutorialContent[examType]?.content || 'No tutorial content available' }} />
-            <button onClick={handleCloseTutorial}>Start Practice</button>
+            <h2>Welcome to {examTypeName} Practice</h2>
+            <div dangerouslySetInnerHTML={{ __html: tutorialContent[examType]?.content || 'No tutorial available for this exam type.' }} />
+            <button className="start-practice-btn" onClick={() => setShowTutorial(false)}>
+              Start Practice
+            </button>
           </div>
         </div>
-      )}
-      
-      <div className="chart-container" ref={chartContainerRef}>
-        {chartData[chartIndex] && (
-          <TradingViewChart 
-            data={prepareChartData(chartData[chartIndex].data)} 
-            symbol={chartData[chartIndex].symbol || 'UNKNOWN'}
-            onChartInstance={handleChartInstance}
-          />
-        )}
-        
-        {chartInstance && (
-          <DrawingTools 
-            chartInstance={chartInstance}
-            activeTool={activeTool}
-            examType={examType}
-            onDrawingsChange={handleDrawingsChange}
-          />
-        )}
-      </div>
-      
-      <div className="tools-panel">
-        <div className="tool-buttons">
-          {availableTools.map((tool) => (
-            <button 
-              key={tool.id}
-              className={`tool-button ${activeTool === tool.id ? 'active' : ''}`}
-              onClick={() => handleToolSelect(tool.id)}
-            >
-              <i className={`fas fa-${tool.icon}`}></i>
-              {tool.label}
-            </button>
-          ))}
-        </div>
-        
-        <div className="action-buttons">
-          {currentAnswer ? (
-            <>
-              <div className="score-display">
-                <span>Score: </span>
-                <span className="score-value">{currentScore}/100</span>
-              </div>
-              <button className="next-button" onClick={handleContinue}>
-                {chartIndex < chartData.length - 1 ? 'Next Chart' : 'See Results'}
+      ) : (
+        <>
+          <div className="chart-header">
+            <h2>{examTypeName} Practice</h2>
+            <div className="chart-info">
+              <span>{chartData[chartIndex]?.symbol || 'Unknown'}</span>
+              <span>{chartData[chartIndex]?.timeframe || '1d'}</span>
+            </div>
+          </div>
+          
+          <div className="chart-container" ref={chartContainerRef}>
+            {loading ? (
+              <LoadingSpinner />
+            ) : (
+              <>
+                <TradingViewChart 
+                  data={prepareChartData(chartData[chartIndex]?.data || [])} 
+                  onChartInstance={setChartInstance}
+                  onChartReady={() => console.log('Chart ready')}
+                />
+                {chartInstance && (
+                  <DrawingTools 
+                    chartContainer={chartContainerRef.current} 
+                    onDrawingsChange={handleDrawingsChange}
+                    chartInstance={chartInstance}
+                  />
+                )}
+              </>
+            )}
+          </div>
+          
+          <div className="chart-instructions">
+            <p>{chartData[chartIndex]?.instructions || 'Mark the significant patterns on this chart.'}</p>
+          </div>
+          
+          <div className="chart-actions">
+            {!currentScore ? (
+              <button 
+                className="submit-btn" 
+                onClick={handleSubmit}
+                disabled={drawings.length === 0}
+              >
+                Submit Answer
               </button>
-            </>
-          ) : (
-            <button 
-              className="submit-button"
-              onClick={handleSubmit} 
-              disabled={drawings.length === 0}
-            >
-              Submit Answer
-            </button>
+            ) : (
+              <button 
+                className="next-btn" 
+                onClick={handleContinue}
+              >
+                Next
+              </button>
+            )}
+          </div>
+          
+          {currentScore !== null && (
+            <div className="results-panel">
+              <h3>Your Score: {currentScore.score}/{currentScore.totalExpectedPoints}</h3>
+              <div className="feedback">
+                {currentScore.feedback.correct.length > 0 && (
+                  <div className="correct-feedback">
+                    <h4>Correct</h4>
+                    <ul>
+                      {currentScore.feedback.correct.map((item, i) => (
+                        <li key={`correct-${i}`}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {currentScore.feedback.incorrect.length > 0 && (
+                  <div className="incorrect-feedback">
+                    <h4>Improvements</h4>
+                    <ul>
+                      {currentScore.feedback.incorrect.map((item, i) => (
+                        <li key={`incorrect-${i}`}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
-        </div>
-      </div>
-      
-      {currentAnswer && (
-        <div className="feedback-panel">
-          <h3>Feedback</h3>
-          <p>{currentAnswer.feedback}</p>
-        </div>
+          
+          {showResults && (
+            <div className="final-results">
+              <h3>Final Score: {totalScore}/{answers.length * 10}</h3>
+              <button 
+                className="restart-btn" 
+                onClick={handleFinish}
+              >
+                Practice Again
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
