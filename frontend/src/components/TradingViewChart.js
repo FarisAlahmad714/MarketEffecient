@@ -13,10 +13,11 @@ const TradingViewChart = ({
     candlestick: null,
     volume: null
   });
+  const readyCalledRef = useRef(false);
 
-  // Create and configure chart
+  // Create chart only once, then update data separately
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current || chartInstanceRef.current) return;
 
     // Default chart options
     const defaultOptions = {
@@ -79,19 +80,6 @@ const TradingViewChart = ({
       seriesRef.current.volume = volumeSeries;
     }
 
-    // Set data for candlestick series
-    if (data.candles && data.candles.length) {
-      candlestickSeries.setData(data.candles);
-    }
-
-    // Set data for volume series
-    if (data.volume && data.volume.length && seriesRef.current.volume) {
-      seriesRef.current.volume.setData(data.volume);
-    }
-
-    // Fit content to view
-    chart.timeScale().fitContent();
-
     // Create resize handler
     const handleResize = () => {
       if (chartInstanceRef.current && chartContainerRef.current) {
@@ -105,37 +93,82 @@ const TradingViewChart = ({
     // Add resize listener
     window.addEventListener('resize', handleResize);
 
-    // Notify parent component that chart is ready
-    onChartReady({
-      chart: chartInstanceRef.current,
-      series: seriesRef.current,
-      container: chartContainerRef.current
-    });
-
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
       if (chartInstanceRef.current) {
         chartInstanceRef.current.remove();
         chartInstanceRef.current = null;
+        seriesRef.current = {
+          candlestick: null,
+          volume: null
+        };
+        readyCalledRef.current = false;
       }
     };
-  }, [data, options, onChartReady]);
+  }, []); // Empty dependency array - only run once
 
-  // Update data when it changes
+  // Update data when it changes - separate effect to prevent chart recreation
   useEffect(() => {
-    if (!seriesRef.current.candlestick) return;
+    if (!chartInstanceRef.current || !seriesRef.current.candlestick) return;
     
-    // Update candlestick data
-    if (data.candles && data.candles.length) {
-      seriesRef.current.candlestick.setData(data.candles);
+    // Make sure candles exist and are valid before setting data
+    if (data && data.candles && Array.isArray(data.candles) && data.candles.length > 0) {
+      try {
+        // Ensure all candle objects have required properties
+        const validCandles = data.candles.filter(candle => 
+          candle && 
+          typeof candle.time === 'number' && 
+          typeof candle.open === 'number' && 
+          typeof candle.high === 'number' && 
+          typeof candle.low === 'number' && 
+          typeof candle.close === 'number'
+        );
+        
+        if (validCandles.length > 0) {
+          seriesRef.current.candlestick.setData(validCandles);
+          
+          // Update volume data
+          if (data.volume && data.volume.length && seriesRef.current.volume) {
+            seriesRef.current.volume.setData(data.volume);
+          }
+      
+          // Fit content to view - only call once per data update
+          chartInstanceRef.current.timeScale().fitContent();
+          
+          // Notify parent component that chart is ready - only once per instance
+          if (!readyCalledRef.current) {
+            // Use setTimeout to ensure chart is fully rendered before callback
+            setTimeout(() => {
+              readyCalledRef.current = true;
+              onChartReady({
+                chart: chartInstanceRef.current,
+                series: seriesRef.current,
+                container: chartContainerRef.current,
+                // Direct methods to be used by drawing tools
+                coordinateToPrice: (y) => {
+                  if (!seriesRef.current.candlestick) return 0;
+                  return seriesRef.current.candlestick.coordinateToPrice(y);
+                },
+                priceToCoordinate: (price) => {
+                  if (!seriesRef.current.candlestick) return 0;
+                  return seriesRef.current.candlestick.priceToCoordinate(price);
+                }
+              });
+            }, 100);
+          }
+        } else {
+          console.warn("No valid candle data found");
+          // Display placeholder or error message if needed
+        }
+      } catch (error) {
+        console.error("Error setting chart data:", error);
+      }
+    } else {
+      console.warn("No candle data available for chart");
+      // Display placeholder or error message
     }
-    
-    // Update volume data
-    if (data.volume && data.volume.length && seriesRef.current.volume) {
-      seriesRef.current.volume.setData(data.volume);
-    }
-  }, [data]);
+  }, [data, onChartReady]);
 
   return (
     <div className="trading-view-chart-container">
@@ -143,8 +176,16 @@ const TradingViewChart = ({
         ref={chartContainerRef} 
         className="chart-container"
       />
+      {(!data || !data.candles || !Array.isArray(data.candles) || data.candles.length === 0) && (
+        <div className="chart-error-overlay">
+          <div className="chart-error-message">
+            <h3>Chart Data Unavailable</h3>
+            <p>Unable to load chart data. Please try refreshing the page.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default TradingViewChart; 
+export default React.memo(TradingViewChart); 

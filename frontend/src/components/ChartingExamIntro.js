@@ -104,10 +104,10 @@ const ChartingExamIntro = () => {
       </div>
       
       <div className="exam-intro-footer">
-        <Link to={`/charting-exam/${examType}/practice?section=${examInfo.sections[0]}`} className="btn-begin-practice">
+        <Link to={`/charting_exam/${examType}/practice?section=${examInfo.sections[0]}`} className="btn-begin-practice">
           Begin Practice
         </Link>
-        <Link to="/charting-exams" className="btn-back">
+        <Link to="/charting_exam" className="btn-back">
           Back to Exams
         </Link>
       </div>

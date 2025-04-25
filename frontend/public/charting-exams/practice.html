@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charting Exam Practice</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Import TradingView library -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="nav-container">
+                <a href="../index.html" class="navbar-brand">Trading Master</a>
+                <div class="nav-links">
+                    <a href="../index.html">Home</a>
+                    <a href="index.html" class="active">Charting Exams</a>
+                    <a href="../bias-test/index.html">Bias Tests</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="practice-container">
+            <!-- Progress bar -->
+            <div class="progress-container">
+                <div class="progress-info">
+                    <div>
+                        <span id="current-chart">1</span> / <span id="total-charts">5</span>
+                    </div>
+                    <div class="timer" id="timer">00:00</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- Exam content -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h2 id="chart-title">Loading chart...</h2>
+                    <div class="chart-meta">
+                        <span id="chart-symbol">Symbol: --</span>
+                        <span id="chart-timeframe">Timeframe: --</span>
+                    </div>
+                </div>
+                
+                <!-- Chart will be rendered here -->
+                <div id="chart-area"></div>
+                
+                <!-- Drawing tools panel -->
+                <div class="drawing-tools-panel">
+                    <div class="tools-header">
+                        <h3>Drawing Tools</h3>
+                    </div>
+                    <div class="tool-buttons" id="tool-buttons">
+                        <button class="tool-btn active" data-tool="pointer">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <span>Pointer</span>
+                        </button>
+                        <button class="tool-btn" data-tool="line">
+                            <i class="fas fa-slash"></i>
+                            <span>Line</span>
+                        </button>
+                        <button class="tool-btn" data-tool="horizontal">
+                            <i class="fas fa-minus"></i>
+                            <span>Horizontal</span>
+                        </button>
+                        <button class="tool-btn" data-tool="fibonacci">
+                            <i class="fas fa-wave-square"></i>
+                            <span>Fibonacci</span>
+                        </button>
+                        <button class="tool-btn" data-tool="rectangle">
+                            <i class="fas fa-square"></i>
+                            <span>Rectangle</span>
+                        </button>
+                    </div>
+                    <div class="tool-actions">
+                        <button id="clear-drawings" class="action-btn">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Clear All</span>
+                        </button>
+                        <button id="undo-drawing" class="action-btn">
+                            <i class="fas fa-undo"></i>
+                            <span>Undo</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart question and submission -->
+            <div class="question-container">
+                <div class="question-content">
+                    <h3 id="question-text">What are the significant swing points in this chart?</h3>
+                    <p id="question-description">Mark all significant swing highs and lows by using the line tool to connect them.</p>
+                </div>
+
+                <div class="submission-container">
+                    <button id="submit-answer" class="btn-primary">
+                        <i class="fas fa-check-circle"></i> Submit Answer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results modal (initially hidden) -->
+            <div class="modal-overlay hidden" id="results-modal-overlay">
+                <div class="results-modal">
+                    <div class="results-header">
+                        <h2 id="result-status">Correct!</h2>
+                    </div>
+                    <div class="results-body">
+                        <div class="results-message" id="results-message">
+                            Great job! You've correctly identified all the key swing points.
+                        </div>
+                        <div class="score-display">
+                            <div class="score-circle">
+                                <svg width="120" height="120" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="54" fill="none" stroke="#333" stroke-width="12" />
+                                    <circle
+                                        id="score-circle"
+                                        cx="60"
+                                        cy="60"
+                                        r="54"
+                                        fill="none"
+                                        stroke="#4CAF50"
+                                        stroke-width="12"
+                                        stroke-dasharray="339.292"
+                                        stroke-dashoffset="0"
+                                    />
+                                </svg>
+                                <div class="score-number" id="score-number">100%</div>
+                            </div>
+                        </div>
+                        <div class="answer-explanation" id="answer-explanation">
+                            <h3>Explanation</h3>
+                            <p>Swing points are significant highs and lows in price that show changes in market sentiment. The swing points you identified correctly show the overall market structure and help predict future price movement.</p>
+                        </div>
+                    </div>
+                    <div class="results-footer">
+                        <button id="continue-btn" class="btn-primary">
+                            <i class="fas fa-arrow-right"></i> Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading overlay (initially shown) -->
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="spinner"></div>
+                <p>Loading chart data...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global variables
+        let currentExamType = '';
+        let charts = [];
+        let currentChartIndex = 0;
+        let chartInstance = null;
+        let drawingManager = null;
+        let startTime = null;
+        let timerInterval = null;
+        let userDrawings = [];
+        
+        // Initialize the exam
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get exam type from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            currentExamType = urlParams.get('exam_type');
+            
+            if (!currentExamType) {
+                showError("No exam type specified.");
+                return;
+            }
+            
+            // Load chart data
+            loadChartData(currentExamType);
+            
+            // Setup drawing tools
+            setupDrawingTools();
+            
+            // Setup event listeners
+            document.getElementById('submit-answer').addEventListener('click', submitAnswer);
+            document.getElementById('continue-btn').addEventListener('click', showNextChart);
+            document.getElementById('clear-drawings').addEventListener('click', clearDrawings);
+            document.getElementById('undo-drawing').addEventListener('click', undoLastDrawing);
+        });
+        
+        // Load chart data for the given exam type
+        function loadChartData(examType) {
+            const mockData = {
+                swing_analysis: [
+                    {
+                        id: 1,
+                        title: "Swing Analysis: Uptrend",
+                        symbol: "EURUSD",
+                        timeframe: "1H",
+                        data: generateMockChartData(100, "uptrend"),
+                        question: "Identify the major swing highs and lows in this uptrend",
+                        description: "Mark the significant swing points and connect them with the line tool to show the market structure.",
+                        explanation: "In an uptrend, price makes a series of higher highs and higher lows. By connecting these points, we can see the overall direction and strength of the trend.",
+                        expectedDrawings: [] // Would contain expected line coordinates
+                    },
+                    {
+                        id: 2,
+                        title: "Swing Analysis: Downtrend",
+                        symbol: "GBPJPY",
+                        timeframe: "4H",
+                        data: generateMockChartData(100, "downtrend"),
+                        question: "Identify the major swing highs and lows in this downtrend",
+                        description: "Use the line tool to connect the significant swing points that form the downtrend structure.",
+                        explanation: "In a downtrend, price makes a series of lower highs and lower lows. Identifying these points helps determine if the downtrend is continuing or showing signs of reversal.",
+                        expectedDrawings: []
+                    },
+                    {
+                        id: 3,
+                        title: "Swing Analysis: Range",
+                        symbol: "BTCUSD",
+                        timeframe: "1D",
+                        data: generateMockChartData(100, "range"),
+                        question: "Identify the key swing points in this ranging market",
+                        description: "Mark the significant swing points that form the upper and lower boundaries of this range.",
+                        explanation: "In ranging markets, price oscillates between areas of support and resistance. These areas are defined by previous swing highs and lows that act as barriers to price movement.",
+                        expectedDrawings: []
+                    },
+                    {
+                        id: 4,
+                        title: "Swing Analysis: Reversal Pattern",
+                        symbol: "XAUUSD",
+                        timeframe: "4H",
+                        data: generateMockChartData(100, "reversal"),
+                        question: "Identify the swing points that form this reversal pattern",
+                        description: "Mark the swing highs and lows that indicate a potential trend reversal.",
+                        explanation: "Reversal patterns often show a change in the sequence of swing highs and lows. For example, a downtrend that starts making higher lows and higher highs may be reversing to an uptrend.",
+                        expectedDrawings: []
+                    },
+                    {
+                        id: 5,
+                        title: "Swing Analysis: Equal Highs and Lows",
+                        symbol: "SPX500",
+                        timeframe: "1D",
+                        data: generateMockChartData(100, "equal_levels"),
+                        question: "Identify the equal highs and equal lows in this chart",
+                        description: "Mark the swing points that form equal highs and equal lows, which are important price levels.",
+                        explanation: "Equal highs and lows are price levels that are revisited multiple times. These levels often indicate areas of strong support or resistance and can be used to identify potential trading opportunities.",
+                        expectedDrawings: []
+                    }
+                ],
+                fibonacci: [
+                    {
+                        id: 1,
+                        title: "Fibonacci Application: Uptrend",
+                        symbol: "EURUSD",
+                        timeframe: "4H",
+                        data: generateMockChartData(100, "uptrend"),
+                        question: "Apply Fibonacci retracement to this uptrend",
+                        description: "Use the Fibonacci tool to measure the retracement from the significant low to the significant high.",
+                        explanation: "In an uptrend, Fibonacci retracements are drawn from a significant low to a significant high. The retracement levels (38.2%, 50%, 61.8%) often act as support in an uptrend.",
+                        expectedDrawings: []
+                    },
+                    // More Fibonacci chart scenarios...
+                ],
+                gap_analysis: [
+                    {
+                        id: 1,
+                        title: "Fair Value Gap: Bullish FVG",
+                        symbol: "EURUSD",
+                        timeframe: "1H",
+                        data: generateMockChartData(100, "bullish_fvg"),
+                        question: "Identify the bullish fair value gaps in this chart",
+                        description: "Use the rectangle tool to mark the areas where bullish fair value gaps have formed.",
+                        explanation: "A bullish fair value gap forms when the low of a candle is higher than the high of the previous candle. These gaps often get filled as price revisits these areas of inefficiency.",
+                        expectedDrawings: []
+                    },
+                    // More FVG chart scenarios...
+                ]
+            };
+            
+            // Set charts for this exam
+            charts = mockData[examType] || [];
+            
+            if (charts.length === 0) {
+                showError("No charts available for this exam.");
+                return;
+            }
+            
+            // Update total charts
+            document.getElementById('total-charts').textContent = charts.length;
+            
+            // Load first chart
+            loadChart(0);
+            
+            // Start timer
+            startTimer();
+        }
+        
+        // Load chart at the given index
+        function loadChart(index) {
+            // Check if index is valid
+            if (index < 0 || index >= charts.length) {
+                return;
+            }
+            
+            // Hide loading overlay after a short delay to ensure chart is rendered
+            setTimeout(() => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }, 1000);
+            
+            currentChartIndex = index;
+            const chartData = charts[index];
+            
+            // Update progress
+            document.getElementById('current-chart').textContent = index + 1;
+            const progressPercent = ((index + 1) / charts.length) * 100;
+            document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+            
+            // Update chart info
+            document.getElementById('chart-title').textContent = chartData.title;
+            document.getElementById('chart-symbol').textContent = `Symbol: ${chartData.symbol}`;
+            document.getElementById('chart-timeframe').textContent = `Timeframe: ${chartData.timeframe}`;
+            
+            // Update question
+            document.getElementById('question-text').textContent = chartData.question;
+            document.getElementById('question-description').textContent = chartData.description;
+            
+            // Render chart
+            renderChart(chartData.data);
+            
+            // Clear any previous drawings
+            userDrawings = [];
+        }
+        
+        // Render chart with the provided data
+        function renderChart(data) {
+            const chartArea = document.getElementById('chart-area');
+            chartArea.innerHTML = '';
+            
+            // Create chart
+            chartInstance = LightweightCharts.createChart(chartArea, {
+                width: chartArea.clientWidth,
+                height: 500,
+                layout: {
+                    backgroundColor: '#1E222D',
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: {
+                        color: 'rgba(42, 46, 57, 0.5)',
+                    },
+                    horzLines: {
+                        color: 'rgba(42, 46, 57, 0.5)',
+                    },
+                },
+                timeScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+            });
+            
+            // Add candlestick series
+            const candlestickSeries = chartInstance.addCandlestickSeries({
+                upColor: '#4CAF50',
+                downColor: '#FF5252',
+                borderVisible: false,
+                wickUpColor: '#4CAF50',
+                wickDownColor: '#FF5252',
+            });
+            
+            // Set data
+            candlestickSeries.setData(data);
+            
+            // Fit content
+            chartInstance.timeScale().fitContent();
+            
+            // Initialize drawing manager for this chart
+            initializeDrawingManager(chartInstance);
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                chartInstance.resize(chartArea.clientWidth, 500);
+            });
+        }
+        
+        // Initialize drawing tools manager
+        function initializeDrawingManager(chart) {
+            // This is a simplified simulation of a drawing manager
+            // In a real application, you'd integrate with a full-featured drawing library
+            drawingManager = {
+                currentTool: 'pointer',
+                drawings: [],
+                addDrawing: function(type, coordinates) {
+                    const drawing = {
+                        type: type,
+                        coordinates: coordinates,
+                        id: Date.now()
+                    };
+                    this.drawings.push(drawing);
+                    userDrawings.push(drawing);
+                    // In a real app, you would render the drawing on the chart here
+                    console.log(`Added ${type} drawing at`, coordinates);
+                    return drawing;
+                },
+                removeLastDrawing: function() {
+                    if (this.drawings.length > 0) {
+                        const removed = this.drawings.pop();
+                        const index = userDrawings.findIndex(d => d.id === removed.id);
+                        if (index !== -1) {
+                            userDrawings.splice(index, 1);
+                        }
+                        // In a real app, you would remove the drawing from the chart here
+                        console.log(`Removed drawing`, removed);
+                    }
+                },
+                clearAllDrawings: function() {
+                    this.drawings = [];
+                    userDrawings = [];
+                    // In a real app, you would clear all drawings from the chart here
+                    console.log('Cleared all drawings');
+                },
+                setTool: function(tool) {
+                    this.currentTool = tool;
+                    console.log(`Set tool to ${tool}`);
+                }
+            };
+        }
+        
+        // Setup drawing tools buttons
+        function setupDrawingTools() {
+            const toolButtons = document.querySelectorAll('.tool-btn');
+            
+            toolButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    toolButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Set active tool
+                    const tool = this.getAttribute('data-tool');
+                    if (drawingManager) {
+                        drawingManager.setTool(tool);
+                    }
+                });
+            });
+        }
+        
+        // Submit answer for evaluation
+        function submitAnswer() {
+            // Show loading for a moment to simulate processing
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            setTimeout(() => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                
+                // Mock evaluation - in a real app, this would compare user drawings to expected solutions
+                const score = Math.floor(Math.random() * 41) + 60; // Random score between 60-100
+                
+                // Update results modal
+                updateResultsModal(score);
+                
+                // Show results modal
+                document.getElementById('results-modal-overlay').classList.remove('hidden');
+            }, 1500);
+        }
+        
+        // Update the results modal with score and feedback
+        function updateResultsModal(score) {
+            const chartData = charts[currentChartIndex];
+            const resultStatus = document.getElementById('result-status');
+            const resultsMessage = document.getElementById('results-message');
+            const scoreNumber = document.getElementById('score-number');
+            const scoreCircle = document.getElementById('score-circle');
+            const answerExplanation = document.getElementById('answer-explanation');
+            
+            // Set score
+            scoreNumber.textContent = `${score}%`;
+            
+            // Calculate and set circle fill based on score
+            const circumference = 2 * Math.PI * 54; // circle radius is 54
+            const offset = circumference - (score / 100) * circumference;
+            scoreCircle.style.strokeDasharray = `${circumference}`;
+            scoreCircle.style.strokeDashoffset = `${offset}`;
+            
+            // Set color based on score
+            let color;
+            if (score >= 80) {
+                color = '#4CAF50'; // Green
+                resultStatus.textContent = 'Excellent!';
+                resultsMessage.textContent = 'Great job! You\'ve correctly identified the key points in the chart.';
+            } else if (score >= 60) {
+                color = '#FFC107'; // Yellow
+                resultStatus.textContent = 'Good Work!';
+                resultsMessage.textContent = 'You\'ve identified most of the key points, but there\'s room for improvement.';
+            } else {
+                color = '#F44336'; // Red
+                resultStatus.textContent = 'Keep Practicing!';
+                resultsMessage.textContent = 'You\'ve missed some important points. Review the explanation and try again.';
+            }
+            
+            scoreCircle.style.stroke = color;
+            resultStatus.style.color = color;
+            
+            // Set explanation
+            answerExplanation.innerHTML = `
+                <h3>Explanation</h3>
+                <p>${chartData.explanation}</p>
+            `;
+        }
+        
+        // Show the next chart
+        function showNextChart() {
+            // Hide the results modal
+            document.getElementById('results-modal-overlay').classList.add('hidden');
+            
+            // Show loading overlay
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            // Check if there are more charts
+            if (currentChartIndex < charts.length - 1) {
+                // Load next chart
+                loadChart(currentChartIndex + 1);
+            } else {
+                // End of exam, redirect to results page
+                window.location.href = `results.html?exam_type=${currentExamType}&score=${calculateFinalScore()}`;
+            }
+        }
+        
+        // Clear all drawings
+        function clearDrawings() {
+            if (drawingManager) {
+                drawingManager.clearAllDrawings();
+            }
+        }
+        
+        // Undo last drawing
+        function undoLastDrawing() {
+            if (drawingManager) {
+                drawingManager.removeLastDrawing();
+            }
+        }
+        
+        // Start the timer
+        function startTimer() {
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+        
+        // Update the timer display
+        function updateTimer() {
+            const now = new Date();
+            const elapsed = Math.floor((now - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const seconds = (elapsed % 60).toString().padStart(2, '0');
+            document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+        }
+        
+        // Show error message
+        function showError(message) {
+            document.getElementById('loading-overlay').classList.add('hidden');
+            
+            // Add error message to chart area
+            const chartArea = document.getElementById('chart-area');
+            chartArea.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h2>Error</h2>
+                    <p>${message}</p>
+                    <a href="index.html" class="btn-secondary">Back to Exams</a>
+                </div>
+            `;
+        }
+        
+        // Calculate final exam score
+        function calculateFinalScore() {
+            // In a real app, this would calculate based on all chart scores
+            return Math.floor(Math.random() * 41) + 60; // Random score between 60-100
+        }
+        
+        // Generate mock chart data
+        function generateMockChartData(length, pattern) {
+            const data = [];
+            let basePrice = 100;
+            let volatility = 5;
+            
+            for (let i = 0; i < length; i++) {
+                // Base price movement based on pattern
+                if (pattern === 'uptrend') {
+                    basePrice += 0.1 + (Math.random() * 0.3);
+                } else if (pattern === 'downtrend') {
+                    basePrice -= 0.1 + (Math.random() * 0.3);
+                } else if (pattern === 'range') {
+                    // Oscillate around base price
+                    basePrice = 100 + Math.sin(i * 0.1) * 10;
+                } else if (pattern === 'reversal') {
+                    // First half down, second half up
+                    if (i < length / 2) {
+                        basePrice -= 0.2 + (Math.random() * 0.3);
+                    } else {
+                        basePrice += 0.2 + (Math.random() * 0.3);
+                    }
+                } else if (pattern === 'equal_levels') {
+                    // Create some equal levels
+                    if (i % 20 < 10) {
+                        basePrice = 100 + Math.floor(i / 20) * 5;
+                    } else {
+                        basePrice = 95 + Math.floor(i / 20) * 5;
+                    }
+                } else if (pattern === 'bullish_fvg') {
+                    // Create some gaps
+                    if (i % 15 === 0) {
+                        basePrice += 3;
+                    }
+                    basePrice += 0.1 + (Math.random() * 0.2);
+                }
+                
+                // Add random noise
+                const randNoise = (Math.random() - 0.5) * volatility;
+                
+                // Calculate OHLC
+                const open = basePrice;
+                const high = basePrice + Math.abs(randNoise) + (Math.random() * 0.5);
+                const low = basePrice - Math.abs(randNoise) - (Math.random() * 0.5);
+                const close = basePrice + randNoise;
+                
+                // Add to data
+                data.push({
+                    time: (Math.floor(Date.now() / 1000) - (length - i) * 3600),
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close
+                });
+            }
+            
+            return data;
+        }
+    </script>
+
+    <style>
+        /* Practice Page Styles */
+        .practice-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: var(--text-primary, #ffffff);
+            font-weight: bold;
+        }
+        
+        .timer {
+            color: #4CAF50;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: var(--bg-tertiary, #242424);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        /* Chart Container */
+        .chart-container {
+            background: var(--bg-tertiary, #242424);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .chart-header h2 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .chart-meta {
+            display: flex;
+            gap: 15px;
+            color: var(--text-secondary, #b0b0b0);
+        }
+        
+        #chart-area {
+            width: 100%;
+            height: 500px;
+            margin-bottom: 20px;
+            background: #1E222D;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        /* Drawing Tools Panel */
+        .drawing-tools-panel {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .tools-header {
+            margin-bottom: 15px;
+        }
+        
+        .tools-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .tool-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .tool-btn, .action-btn {
+            background: var(--bg-quaternary, #333);
+            border: none;
+            color: var(--text-secondary, #b0b0b0);
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .tool-btn.active {
+            background: rgba(33, 150, 243, 0.2);
+            color: #64B5F6;
+        }
+        
+        .tool-btn:hover, .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .tool-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Question Container */
+        .question-container {
+            background: var(--bg-tertiary, #242424);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .question-content h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--text-primary, #ffffff);
+            font-size: 1.3rem;
+        }
+        
+        .question-content p {
+            color: var(--text-secondary, #b0b0b0);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .submission-container {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary, #ffffff);
+            text-decoration: none;
+            border: 1px solid var(--border-color, #444);
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        /* Results Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .results-modal {
+            background: var(--bg-secondary, #1a1a1a);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .results-header {
+            padding: 25px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color, #333);
+        }
+        
+        .results-header h2 {
+            margin: 0;
+            font-size: 2rem;
+            color: #4CAF50;
+        }
+        
+        .results-body {
+            padding: 25px;
+        }
+        
+        .results-message {
+            text-align: center;
+            margin-bottom: 25px;
+            color: var(--text-secondary, #b0b0b0);
+            font-size: 1.1rem;
+        }
+        
+        .score-display {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .score-circle {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        
+        .score-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .answer-explanation {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .answer-explanation h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .answer-explanation p {
+            color: var(--text-secondary, #b0b0b0);
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        .results-footer {
+            padding: 20px 25px;
+            text-align: center;
+            border-top: 1px solid var(--border-color, #333);
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            border-radius: 12px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(76, 175, 80, 0.3);
+            border-top: 5px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-overlay p {
+            color: var(--text-primary, #ffffff);
+            font-size: 1.2rem;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 50px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .error-message i {
+            font-size: 3rem;
+            color: #F44336;
+            margin-bottom: 20px;
+        }
+        
+        .error-message h2 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .error-message p {
+            color: var(--text-secondary, #b0b0b0);
+            margin-bottom: 25px;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .chart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .chart-meta {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .tool-buttons {
+                flex-wrap: wrap;
+            }
+            
+            .tool-btn, .action-btn {
+                flex: 1 0 calc(50% - 10px);
+                justify-content: center;
+            }
+            
+            .tool-actions {
+                flex-direction: column;
+            }
+            
+            #chart-area {
+                height: 400px;
+            }
+        }
+    </style>
+</body>
+</html> 

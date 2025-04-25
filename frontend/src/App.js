@@ -30,9 +30,9 @@ function App() {
               <Route path="/results/:assetSymbol" element={<Results />} />
               
               {/* Charting Exam Routes */}
-              <Route path="/charting-exams" element={<ChartingExams />} />
-              <Route path="/charting-exam/:examType" element={<ChartingExamIntro />} />
-              <Route path="/charting-exam/:examType/practice" element={<ChartingExamPractice />} />
+              <Route path="/charting_exam" element={<ChartingExams />} />
+              <Route path="/charting_exam/:examType" element={<ChartingExamIntro />} />
+              <Route path="/charting_exam/:examType/practice" element={<ChartingExamPractice />} />
             </Routes>
           </main>
         </div>

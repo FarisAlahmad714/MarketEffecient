@@ -1,308 +1,657 @@
-import { useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import './DrawingTools.css';
 
-const DrawingTools = ({ chartContainer }) => {
+const DrawingTools = ({ chartContainer, onDrawingsChange, chartInstance }) => {
+  const svgRef = useRef(null);
+  const [currentTool, setCurrentTool] = useState(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentElement, setCurrentElement] = useState(null);
+  const [drawings, setDrawings] = useState([]);
+  const [pointType, setPointType] = useState('high'); // 'high' or 'low'
+  const drawingsRef = useRef(drawings);
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const overlayRef = useRef(null);
+  const canvasRef = useRef(null);
+  const drawingAreaRef = useRef(null);
+  const canvasContext = useRef(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [drawingContext, setDrawingContext] = useState(null);
+
+  // Always keep drawingsRef in sync with drawings state
+  useEffect(() => {
+    drawingsRef.current = drawings;
+  }, [drawings]);
+
+  // Initialize SVG container
   useEffect(() => {
     if (!chartContainer) return;
+
+    // Set up SVG container just once
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.style.position = "absolute";
+    svg.style.top = "0";
+    svg.style.left = "0";
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    svg.style.pointerEvents = "all";
+    svg.style.zIndex = "10";
+    chartContainer.appendChild(svg);
+    svgRef.current = svg;
+
+    // Clean up function
+    return () => {
+      if (chartContainer && svg && chartContainer.contains(svg)) {
+        chartContainer.removeChild(svg);
+      }
+    };
+  }, [chartContainer]);
+
+  // Memoize the chart dimensions to avoid unnecessary calculations
+  const chartDimensions = useMemo(() => {
+    if (!chartInstance || !chartInstance.chart) return { width: 0, height: 0 };
     
-    // Need to find the actual chart container inside the TradingViewChart component
-    const actualChartContainer = chartContainer.querySelector('.chart-container') || chartContainer;
+    const chartElement = chartInstance.chart.chartElement();
+    if (!chartElement) return { width: 0, height: 0 };
     
-    class DrawingLayer {
-      constructor(container) {
-        this.container = container;
-        this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        this.svg.style.position = "absolute";
-        this.svg.style.top = "0";
-        this.svg.style.left = "0";
-        this.svg.style.width = "100%";
-        this.svg.style.height = "100%";
-        this.svg.style.pointerEvents = "all";
-        this.svg.style.zIndex = "10";
-        container.appendChild(this.svg);
+    return {
+      width: chartElement.clientWidth,
+      height: chartElement.clientHeight
+    };
+  }, [chartInstance]);
+  
+  // Initialize canvas dimensions and context
+  useEffect(() => {
+    if (!overlayRef.current || !chartInstance || !chartInstance.chart) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // Set canvas dimensions to match chart
+    canvas.width = chartDimensions.width;
+    canvas.height = chartDimensions.height;
+    
+    // Store canvas context for later use
+    canvasContext.current = canvas.getContext('2d');
+    
+    // Position the drawing area to match chart
+    const chartElement = chartInstance.chart.chartElement();
+    if (chartElement && drawingAreaRef.current) {
+      const rect = chartElement.getBoundingClientRect();
+      drawingAreaRef.current.style.width = `${rect.width}px`;
+      drawingAreaRef.current.style.height = `${rect.height}px`;
+    }
+    
+  }, [chartInstance, chartDimensions]);
 
-        this.currentTool = null;
-        this.isDrawing = false;
-        this.currentElement = null;
-        this.drawings = [];
-        this.fibLevels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-        this.fibElements = [];
-        this.fibStartPoint = null;
-
-        this.container.addEventListener('mousedown', this.startDrawing.bind(this));
-        this.container.addEventListener('mousemove', this.draw.bind(this));
-        this.container.addEventListener('mouseup', this.endDrawing.bind(this));
-
-        console.log('DrawingLayer initialized');
-      }
-
-      setTool(tool) {
-        this.currentTool = tool;
-        console.log('Tool selected:', tool);
-        this.container.style.cursor = tool === 'pointer' ? 'pointer' : 'crosshair';
-      }
-
-      startDrawing(e) {
-        if (!this.currentTool) return;
-        
-        this.isDrawing = true;
-        const point = this.getMousePosition(e);
-
-        if (this.currentTool === 'line') {
-          this.currentElement = this.createLine(point.x, point.y, point.x, point.y);
-          this.svg.appendChild(this.currentElement);
-        } else if (this.currentTool === 'pointer') {
-          const circle = this.createPoint(point.x, point.y);
-          this.svg.appendChild(circle);
-          this.drawings.push(circle);
-        } else if (this.currentTool === 'box') {
-          this.startPoint = point;
-          this.currentElement = this.createBox(point.x, point.y, 0, 0);
-          this.svg.appendChild(this.currentElement);
-        } else if (this.currentTool === 'fibonacci') {
-          this.fibStartPoint = point;
-          this.currentElement = this.createLine(point.x, point.y, point.x, point.y);
-          this.currentElement.setAttribute('stroke', 'gold');
-          this.currentElement.setAttribute('stroke-dasharray', '5,2');
-          this.svg.appendChild(this.currentElement);
-        }
-      }
-
-      draw(e) {
-        if (!this.isDrawing || !this.currentElement) return;
-        
-        const point = this.getMousePosition(e);
-
-        if (this.currentTool === 'line') {
-          this.currentElement.setAttribute('x2', point.x);
-          this.currentElement.setAttribute('y2', point.y);
-        } else if (this.currentTool === 'box' && this.startPoint) {
-          const width = point.x - this.startPoint.x;
-          const height = point.y - this.startPoint.y;
-          
-          this.currentElement.setAttribute('width', Math.abs(width));
-          this.currentElement.setAttribute('height', Math.abs(height));
-          
-          if (width < 0) {
-            this.currentElement.setAttribute('x', point.x);
-          }
-          
-          if (height < 0) {
-            this.currentElement.setAttribute('y', point.y);
-          }
-        } else if (this.currentTool === 'fibonacci' && this.fibStartPoint) {
-          this.currentElement.setAttribute('x2', point.x);
-          this.currentElement.setAttribute('y2', point.y);
-          
-          // Update Fibonacci price levels in UI
-          this.updateFibonacciLevelPrices(this.fibStartPoint, point);
-        }
-      }
-
-      endDrawing() {
-        if (!this.isDrawing) return;
-        
-        if (this.currentElement) {
-          if (this.currentTool === 'fibonacci' && this.fibStartPoint) {
-            const endPoint = {
-              x: parseFloat(this.currentElement.getAttribute('x2')),
-              y: parseFloat(this.currentElement.getAttribute('y2'))
-            };
-            
-            // Create the actual Fibonacci retracements
-            this.createFibonacciLevels(this.fibStartPoint, endPoint);
-            
-            // Clear the temporary line
-            this.svg.removeChild(this.currentElement);
-          } else {
-            this.drawings.push(this.currentElement);
-          }
-        }
-
-        this.isDrawing = false;
-        this.currentElement = null;
-        this.startPoint = null;
-        this.fibStartPoint = null;
-      }
-
-      createFibonacciLevels(startPoint, endPoint) {
-        // Create a group for all fibonacci elements
-        const fibGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        fibGroup.setAttribute('class', 'fibonacci-retracement');
-        
-        // Main trend line
-        const mainLine = this.createLine(startPoint.x, startPoint.y, endPoint.x, endPoint.y);
-        mainLine.setAttribute('stroke', 'gold');
-        mainLine.setAttribute('stroke-width', '2');
-        fibGroup.appendChild(mainLine);
-        
-        // Calculate direction and length
-        const isUptrend = startPoint.y > endPoint.y;
-        const height = Math.abs(startPoint.y - endPoint.y);
-        const width = Math.abs(startPoint.x - endPoint.x);
-        
-        // Create level lines
-        this.fibLevels.forEach(level => {
-          const y = isUptrend
-            ? endPoint.y + (height * level)
-            : startPoint.y + (height * level);
-          
-          // Create horizontal line for this level
-          const levelLine = this.createLine(
-            Math.min(startPoint.x, endPoint.x) - 20, 
-            y, 
-            Math.max(startPoint.x, endPoint.x) + 20, 
-            y
-          );
-          
-          levelLine.setAttribute('stroke', 'gold');
-          levelLine.setAttribute('stroke-width', '1');
-          levelLine.setAttribute('stroke-dasharray', '3,2');
-          levelLine.setAttribute('data-level', level.toString());
-          fibGroup.appendChild(levelLine);
-          
-          // Add label for this level
-          const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          label.setAttribute('x', Math.max(startPoint.x, endPoint.x) + 25);
-          label.setAttribute('y', y + 4);
-          label.setAttribute('fill', 'white');
-          label.setAttribute('font-size', '10px');
-          label.textContent = level.toString();
-          fibGroup.appendChild(label);
-        });
-        
-        // Add to drawings and append to SVG
-        this.svg.appendChild(fibGroup);
-        this.drawings.push(fibGroup);
-        
-        // Set the fibonacci tool type attribute for validation
-        fibGroup.setAttribute('type', 'fibonacci');
-        fibGroup.setAttribute('x1', startPoint.x);
-        fibGroup.setAttribute('y1', startPoint.y);
-        fibGroup.setAttribute('x2', endPoint.x);
-        fibGroup.setAttribute('y2', endPoint.y);
-      }
-      
-      updateFibonacciLevelPrices(startPoint, endPoint) {
-        // Calculate the price range
-        const range = Math.abs(startPoint.y - endPoint.y);
-        const basePrice = Math.min(startPoint.y, endPoint.y);
-        
-        // Update UI price levels
-        this.fibLevels.forEach(level => {
-          const priceElement = document.getElementById(`fib-price-${level * 1000}`);
-          if (priceElement) {
-            const levelPrice = basePrice + (range * level);
-            const formattedPrice = levelPrice.toFixed(2);
-            priceElement.textContent = formattedPrice;
-          }
-        });
-      }
-
-      createLine(x1, y1, x2, y2) {
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute('x1', x1);
-        line.setAttribute('y1', y1);
-        line.setAttribute('x2', x2);
-        line.setAttribute('y2', y2);
-        line.setAttribute('stroke', 'lime');
-        line.setAttribute('stroke-width', '3');
-        return line;
-      }
-
-      createPoint(x, y) {
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute('cx', x);
-        circle.setAttribute('cy', y);
-        circle.setAttribute('r', '5');
-        circle.setAttribute('fill', 'purple');
-        return circle;
-      }
-
-      createBox(x, y, width, height) {
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute('x', x);
-        rect.setAttribute('y', y);
-        rect.setAttribute('width', width);
-        rect.setAttribute('height', height);
-        rect.setAttribute('stroke', 'orange');
-        rect.setAttribute('stroke-width', '2');
-        rect.setAttribute('fill', 'rgba(255, 165, 0, 0.2)');
-        return rect;
-      }
-
-      getMousePosition(event) {
-        const rect = this.container.getBoundingClientRect();
+  // Notify parent of drawings changes - debounced via useCallback
+  const notifyDrawingsChange = useCallback(() => {
+    if (!onDrawingsChange) return;
+    
+    const drawingData = drawingsRef.current.map(element => {
+      if (element.tagName === 'line') {
         return {
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top
+          type: 'line',
+          x1: parseFloat(element.getAttribute('x1')),
+          y1: parseFloat(element.getAttribute('y1')),
+          x2: parseFloat(element.getAttribute('x2')),
+          y2: parseFloat(element.getAttribute('y2')),
+          time: parseFloat(element.dataset.time || 0),
+          price: parseFloat(element.dataset.price || 0)
+        };
+      } else if (element.tagName === 'circle') {
+        return {
+          type: 'point',
+          pointType: element.dataset.pointType || 'high',
+          x: parseFloat(element.getAttribute('cx')),
+          y: parseFloat(element.getAttribute('cy')),
+          time: parseFloat(element.dataset.time || 0),
+          price: parseFloat(element.dataset.price || 0)
         };
       }
+      return null;
+    }).filter(item => item !== null);
+    
+    onDrawingsChange(drawingData);
+  }, [onDrawingsChange]);
 
-      clearDrawings() {
-        while (this.svg.firstChild) {
-          this.svg.removeChild(this.svg.firstChild);
-        }
-        this.drawings = [];
-        
-        // Reset Fibonacci prices in UI
-        this.fibLevels.forEach(level => {
-          const priceElement = document.getElementById(`fib-price-${level * 1000}`);
-          if (priceElement) {
-            priceElement.textContent = '-';
-          }
-        });
+  // Debounced notification on drawings change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      notifyDrawingsChange();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [drawings, notifyDrawingsChange]);
+
+  // Function to convert pixel coordinates to price values
+  const pixelToPrice = useCallback((x, y) => {
+    if (!chartInstance || !chartInstance.chart) {
+      return { time: null, price: null };
+    }
+    
+    try {
+      // Use the lightweight-charts conversion functions
+      const price = chartInstance.chart.priceScale('right').coordinateToPrice(y);
+      const time = chartInstance.chart.timeScale().coordinateToTime(x);
+      
+      return { time, price };
+    } catch (err) {
+      console.error('Coordinate conversion error:', err);
+      return { time: null, price: null };
+    }
+  }, [chartInstance]);
+  
+  // Function to convert price to pixel coordinates
+  const priceToPixel = useCallback((time, price) => {
+    if (!chartInstance || !chartInstance.chart) {
+      return { x: 0, y: 0 };
+    }
+    
+    try {
+      // Use the lightweight-charts conversion functions
+      const y = chartInstance.chart.priceScale('right').priceToCoordinate(price);
+      const x = chartInstance.chart.timeScale().timeToCoordinate(time);
+      
+      return { x, y };
+    } catch (err) {
+      console.error('Coordinate conversion error:', err);
+      return { x: 0, y: 0 };
+    }
+  }, [chartInstance]);
+
+  const startDrawing = useCallback((e) => {
+    if (!currentTool || !svgRef.current) return;
+    
+    setIsDrawing(true);
+    const point = {
+      x: e.clientX - chartContainer.getBoundingClientRect().left,
+      y: e.clientY - chartContainer.getBoundingClientRect().top
+    };
+    
+    // Get chart coordinates
+    const chartCoordinates = pixelToPrice(point.x, point.y);
+
+    if (currentTool === 'line') {
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute('x1', point.x);
+      line.setAttribute('y1', point.y);
+      line.setAttribute('x2', point.x);
+      line.setAttribute('y2', point.y);
+      line.setAttribute('stroke', 'lime');
+      line.setAttribute('stroke-width', '3');
+      line.dataset.price = chartCoordinates.price;
+      line.dataset.time = chartCoordinates.time;
+      
+      svgRef.current.appendChild(line);
+      setCurrentElement(line);
+    } else if (currentTool === 'pointer') {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute('cx', point.x);
+      circle.setAttribute('cy', point.y);
+      circle.setAttribute('r', '6');
+      
+      // Set color based on point type (red for highs, green for lows)
+      const color = pointType === 'high' ? '#ff4560' : '#00e396';
+      circle.setAttribute('fill', color);
+      circle.setAttribute('stroke', '#ffffff');
+      circle.setAttribute('stroke-width', '1');
+      
+      // Store point type and coordinates as data attributes
+      circle.dataset.pointType = pointType;
+      circle.dataset.price = chartCoordinates.price;
+      circle.dataset.time = chartCoordinates.time;
+      
+      svgRef.current.appendChild(circle);
+      setDrawings(prev => [...prev, circle]);
+    }
+  }, [chartContainer, currentTool, pixelToPrice, pointType]);
+
+  const draw = useCallback((e) => {
+    if (!isDrawing || !currentElement || currentTool !== 'line') return;
+
+    const point = {
+      x: e.clientX - chartContainer.getBoundingClientRect().left,
+      y: e.clientY - chartContainer.getBoundingClientRect().top
+    };
+    
+    currentElement.setAttribute('x2', point.x);
+    currentElement.setAttribute('y2', point.y);
+  }, [chartContainer, currentElement, currentTool, isDrawing]);
+
+  const endDrawing = useCallback(() => {
+    if (!isDrawing) return;
+    
+    if (currentTool === 'line' && currentElement) {
+      setDrawings(prev => [...prev, currentElement]);
+    }
+
+    setIsDrawing(false);
+    setCurrentElement(null);
+  }, [currentElement, currentTool, isDrawing]);
+
+  const clearDrawings = useCallback(() => {
+    if (!svgRef.current) return;
+    
+    while (svgRef.current.firstChild) {
+      svgRef.current.removeChild(svgRef.current.firstChild);
+    }
+    setDrawings([]);
+  }, []);
+
+  const undoLastDrawing = useCallback(() => {
+    if (drawings.length === 0 || !svgRef.current) return;
+    
+    const lastDrawing = drawings[drawings.length - 1];
+    svgRef.current.removeChild(lastDrawing);
+    setDrawings(prev => prev.slice(0, -1));
+  }, [drawings]);
+
+  // Set up event listeners
+  useEffect(() => {
+    if (!chartContainer) return;
+
+    // Use memoized handlers for better performance
+    const mouseDownHandler = startDrawing;
+    const mouseMoveHandler = draw;
+    const mouseUpHandler = endDrawing;
+
+    chartContainer.addEventListener('mousedown', mouseDownHandler);
+    chartContainer.addEventListener('mousemove', mouseMoveHandler);
+    chartContainer.addEventListener('mouseup', mouseUpHandler);
+
+    return () => {
+      chartContainer.removeEventListener('mousedown', mouseDownHandler);
+      chartContainer.removeEventListener('mousemove', mouseMoveHandler);
+      chartContainer.removeEventListener('mouseup', mouseUpHandler);
+    };
+  }, [chartContainer, startDrawing, draw, endDrawing]);
+
+  // Handle mouse move over the drawing area
+  const handleMouseMove = useCallback((e) => {
+    if (!chartInstance || !drawingAreaRef.current || !currentTool) return;
+    
+    // Get mouse position relative to drawing area
+    const rect = drawingAreaRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Convert to price coordinates
+    const coords = pixelToPrice(x, y);
+    
+    if (coords.time && coords.price) {
+      setHoveredPoint({ 
+        x, 
+        y, 
+        time: coords.time, 
+        price: coords.price,
+        type: currentTool 
+      });
+    } else {
+      setHoveredPoint(null);
+    }
+    
+  }, [chartInstance, currentTool, pixelToPrice]);
+  
+  // Handle click on the drawing area
+  const handleClick = useCallback((e) => {
+    if (!chartInstance || !drawingAreaRef.current || !currentTool || !hoveredPoint) return;
+    
+    e.preventDefault();
+    
+    // Add new drawing point
+    const newDrawing = {
+      id: Date.now().toString(),
+      x: hoveredPoint.x,
+      y: hoveredPoint.y,
+      time: hoveredPoint.time,
+      price: hoveredPoint.price,
+      type: currentTool
+    };
+    
+    // For fibonacci-retracement, only allow two points (high and low)
+    if (pointType === 'fibonacci-retracement') {
+      // If we already have a point of this type, replace it
+      const filteredDrawings = drawings.filter(d => d.type !== currentTool);
+      const newDrawings = [...filteredDrawings, newDrawing];
+      setDrawings(newDrawings);
+      
+      // Notify parent component
+      if (onDrawingsChange) {
+        onDrawingsChange(newDrawings);
       }
-
-      undoLastDrawing() {
-        if (this.drawings.length > 0) {
-          const lastDrawing = this.drawings.pop();
-          this.svg.removeChild(lastDrawing);
-        }
+    } else {
+      // For other exam types, allow multiple points
+      const newDrawings = [...drawings, newDrawing];
+      setDrawings(newDrawings);
+      
+      // Notify parent component
+      if (onDrawingsChange) {
+        onDrawingsChange(newDrawings);
       }
     }
     
-    // Initialize drawing layer and expose it globally for tool buttons
-    window.drawingLayer = new DrawingLayer(actualChartContainer);
-    
-    // Set up event listeners for buttons
-    document.getElementById('line-tool')?.addEventListener('click', 
-      () => window.drawingLayer.setTool('line'));
-    document.getElementById('pointer-tool')?.addEventListener('click', 
-      () => window.drawingLayer.setTool('pointer'));
-    document.getElementById('box-tool')?.addEventListener('click', 
-      () => window.drawingLayer.setTool('box'));
-    document.getElementById('fibonacci-tool')?.addEventListener('click', 
-      () => window.drawingLayer.setTool('fibonacci'));
-    document.getElementById('clear-btn')?.addEventListener('click', 
-      () => window.drawingLayer.clearDrawings());
-    document.getElementById('undo-btn')?.addEventListener('click', 
-      () => window.drawingLayer.undoLastDrawing());
-    
-    // Cleanup on unmount
-    return () => {
-      if (actualChartContainer.contains(window.drawingLayer.svg)) {
-        actualChartContainer.removeChild(window.drawingLayer.svg);
-      }
-      
-      // Remove event listeners to prevent memory leaks
-      document.getElementById('line-tool')?.removeEventListener('click', 
-        () => window.drawingLayer.setTool('line'));
-      document.getElementById('pointer-tool')?.removeEventListener('click', 
-        () => window.drawingLayer.setTool('pointer'));
-      document.getElementById('box-tool')?.removeEventListener('click', 
-        () => window.drawingLayer.setTool('box'));
-      document.getElementById('fibonacci-tool')?.removeEventListener('click', 
-        () => window.drawingLayer.setTool('fibonacci'));
-      document.getElementById('clear-btn')?.removeEventListener('click', 
-        () => window.drawingLayer.clearDrawings());
-      document.getElementById('undo-btn')?.removeEventListener('click', 
-        () => window.drawingLayer.undoLastDrawing());
-      
-      window.drawingLayer = null;
-    };
-  }, [chartContainer]);
+  }, [chartInstance, currentTool, hoveredPoint, drawings, pointType, onDrawingsChange]);
   
-  return null; // This component doesn't render anything directly
+  // Handle right-click to remove a drawing
+  const handleRightClick = useCallback((e) => {
+    if (!chartInstance || !drawingAreaRef.current) return;
+    
+    e.preventDefault();
+    
+    // Get mouse position relative to drawing area
+    const rect = drawingAreaRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Find if we clicked near an existing drawing (within 10px radius)
+    const clickedDrawing = drawings.find(drawing => {
+      const distanceSquared = Math.pow(drawing.x - x, 2) + Math.pow(drawing.y - y, 2);
+      return distanceSquared <= 100; // 10px radius squared
+    });
+    
+    if (clickedDrawing) {
+      // Remove the drawing
+      const newDrawings = drawings.filter(d => d.id !== clickedDrawing.id);
+      setDrawings(newDrawings);
+      
+      // Notify parent component
+      if (onDrawingsChange) {
+        onDrawingsChange(newDrawings);
+      }
+    }
+    
+  }, [chartInstance, drawings, onDrawingsChange]);
+  
+  // Clear event listeners when component unmounts
+  useEffect(() => {
+    const drawingArea = drawingAreaRef.current;
+    
+    return () => {
+      if (drawingArea) {
+        drawingArea.removeEventListener('mousemove', handleMouseMove);
+        drawingArea.removeEventListener('click', handleClick);
+        drawingArea.removeEventListener('contextmenu', handleRightClick);
+      }
+    };
+  }, [handleMouseMove, handleClick, handleRightClick]);
+  
+  // Attach event listeners
+  useEffect(() => {
+    const drawingArea = drawingAreaRef.current;
+    if (!drawingArea) return;
+    
+    drawingArea.addEventListener('mousemove', handleMouseMove);
+    drawingArea.addEventListener('click', handleClick);
+    drawingArea.addEventListener('contextmenu', handleRightClick);
+    
+    return () => {
+      drawingArea.removeEventListener('mousemove', handleMouseMove);
+      drawingArea.removeEventListener('click', handleClick);
+      drawingArea.removeEventListener('contextmenu', handleRightClick);
+    };
+  }, [handleMouseMove, handleClick, handleRightClick]);
+  
+  // Draw on canvas when drawings or hovered point change
+  useEffect(() => {
+    if (!canvasContext.current || !canvasRef.current) return;
+    
+    const ctx = canvasContext.current;
+    const canvas = canvasRef.current;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw existing drawings
+    drawings.forEach(drawing => {
+      drawPoint(ctx, drawing);
+    });
+    
+    // Draw hovered point
+    if (hoveredPoint && currentTool) {
+      drawHoveredPoint(ctx, hoveredPoint);
+    }
+    
+    // Draw fibonacci levels if necessary
+    if (pointType === 'fibonacci-retracement') {
+      const highPoint = drawings.find(d => d.type === 'high');
+      const lowPoint = drawings.find(d => d.type === 'low');
+      
+      if (highPoint && lowPoint) {
+        drawFibonacciLevels(ctx, highPoint, lowPoint);
+      }
+    }
+    
+  }, [drawings, hoveredPoint, currentTool, pointType]);
+  
+  // Function to draw a point on canvas
+  const drawPoint = (ctx, point) => {
+    if (!point) return;
+    
+    ctx.save();
+    
+    // Set styles based on point type
+    if (point.type === 'high') {
+      ctx.fillStyle = 'rgba(255, 59, 48, 0.7)';
+      ctx.strokeStyle = 'rgba(255, 59, 48, 1)';
+    } else if (point.type === 'low') {
+      ctx.fillStyle = 'rgba(52, 199, 89, 0.7)';
+      ctx.strokeStyle = 'rgba(52, 199, 89, 1)';
+    } else if (point.type === 'bullishFVG') {
+      ctx.fillStyle = 'rgba(52, 199, 89, 0.3)';
+      ctx.strokeStyle = 'rgba(52, 199, 89, 1)';
+    } else if (point.type === 'bearishFVG') {
+      ctx.fillStyle = 'rgba(255, 59, 48, 0.3)';
+      ctx.strokeStyle = 'rgba(255, 59, 48, 1)';
+    }
+    
+    ctx.lineWidth = 2;
+    
+    // Draw based on point type
+    if (point.type === 'high' || point.type === 'low') {
+      // Draw a circle
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw a label
+      ctx.font = '12px Arial';
+      ctx.fillStyle = point.type === 'high' ? 'rgba(255, 59, 48, 1)' : 'rgba(52, 199, 89, 1)';
+      ctx.textAlign = 'center';
+      ctx.fillText(point.type === 'high' ? 'H' : 'L', point.x, point.y - 15);
+      
+      // Draw price
+      ctx.font = '10px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(point.price.toFixed(2), point.x, point.y + 20);
+    } else if (point.type === 'bullishFVG' || point.type === 'bearishFVG') {
+      // For FVG, we need to draw a rectangle
+      // This is a placeholder - in real implementation you would need to determine the height of the FVG
+      const height = 30; // example height
+      
+      ctx.fillRect(point.x - 50, point.y - (point.type === 'bullishFVG' ? 0 : height), 100, height);
+      ctx.strokeRect(point.x - 50, point.y - (point.type === 'bullishFVG' ? 0 : height), 100, height);
+      
+      // Draw label
+      ctx.font = '12px Arial';
+      ctx.fillStyle = point.type === 'bullishFVG' ? 'rgba(52, 199, 89, 1)' : 'rgba(255, 59, 48, 1)';
+      ctx.textAlign = 'center';
+      ctx.fillText(point.type === 'bullishFVG' ? 'BFVG' : 'BRVG', point.x, point.y + (point.type === 'bullishFVG' ? -10 : 10));
+    }
+    
+    ctx.restore();
+  };
+  
+  // Function to draw hovered point
+  const drawHoveredPoint = (ctx, point) => {
+    if (!point) return;
+    
+    ctx.save();
+    
+    // Set styles based on point type
+    if (point.type === 'high') {
+      ctx.fillStyle = 'rgba(255, 59, 48, 0.3)';
+      ctx.strokeStyle = 'rgba(255, 59, 48, 0.8)';
+    } else if (point.type === 'low') {
+      ctx.fillStyle = 'rgba(52, 199, 89, 0.3)';
+      ctx.strokeStyle = 'rgba(52, 199, 89, 0.8)';
+    } else if (point.type === 'bullishFVG') {
+      ctx.fillStyle = 'rgba(52, 199, 89, 0.1)';
+      ctx.strokeStyle = 'rgba(52, 199, 89, 0.8)';
+    } else if (point.type === 'bearishFVG') {
+      ctx.fillStyle = 'rgba(255, 59, 48, 0.1)';
+      ctx.strokeStyle = 'rgba(255, 59, 48, 0.8)';
+    }
+    
+    ctx.lineWidth = 1;
+    
+    // Draw based on point type
+    if (point.type === 'high' || point.type === 'low') {
+      // Draw a circle
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw crosshair
+      ctx.beginPath();
+      ctx.moveTo(point.x - 15, point.y);
+      ctx.lineTo(point.x + 15, point.y);
+      ctx.moveTo(point.x, point.y - 15);
+      ctx.lineTo(point.x, point.y + 15);
+      ctx.stroke();
+      
+      // Draw price
+      ctx.font = '10px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(point.price.toFixed(2), point.x, point.y + 25);
+    } else if (point.type === 'bullishFVG' || point.type === 'bearishFVG') {
+      // For FVG, we need to draw a rectangle preview
+      const height = 30; // example height
+      
+      ctx.fillRect(point.x - 50, point.y - (point.type === 'bullishFVG' ? 0 : height), 100, height);
+      ctx.strokeRect(point.x - 50, point.y - (point.type === 'bullishFVG' ? 0 : height), 100, height);
+      
+      // Draw label
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText('Click to place', point.x, point.y + (point.type === 'bullishFVG' ? -10 : 10));
+    }
+    
+    ctx.restore();
+  };
+  
+  // Function to draw fibonacci levels
+  const drawFibonacciLevels = (ctx, highPoint, lowPoint) => {
+    if (!highPoint || !lowPoint) return;
+    
+    ctx.save();
+    
+    // Calculate the price difference
+    const priceDiff = highPoint.price - lowPoint.price;
+    
+    // Define fibonacci levels
+    const levels = [
+      { level: 0, color: 'rgba(52, 199, 89, 1)' },     // Low point (0%)
+      { level: 0.236, color: 'rgba(255, 204, 0, 0.6)' },
+      { level: 0.382, color: 'rgba(255, 149, 0, 0.6)' },
+      { level: 0.5, color: 'rgba(255, 59, 48, 0.6)' },
+      { level: 0.618, color: 'rgba(175, 82, 222, 0.6)' },
+      { level: 0.786, color: 'rgba(90, 200, 250, 0.6)' },
+      { level: 1, color: 'rgba(255, 59, 48, 1)' }      // High point (100%)
+    ];
+    
+    // Calculate chart width for drawing lines
+    const chartWidth = canvasRef.current.width;
+    
+    // Draw each level
+    levels.forEach(level => {
+      // Calculate y position for this level
+      const levelPrice = lowPoint.price + (priceDiff * level.level);
+      const { y } = priceToPixel(lowPoint.time, levelPrice);
+      
+      // Draw horizontal line
+      ctx.beginPath();
+      ctx.strokeStyle = level.color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 3]);
+      ctx.moveTo(0, y);
+      ctx.lineTo(chartWidth, y);
+      ctx.stroke();
+      
+      // Draw level label
+      ctx.font = '10px Arial';
+      ctx.fillStyle = level.color;
+      ctx.textAlign = 'left';
+      ctx.setLineDash([]);
+      
+      let levelText;
+      if (level.level === 0) levelText = '0% (Low)';
+      else if (level.level === 1) levelText = '100% (High)';
+      else levelText = `${(level.level * 100).toFixed(1)}%`;
+      
+      ctx.fillText(`${levelText} - ${levelPrice.toFixed(2)}`, 10, y - 5);
+    });
+    
+    ctx.restore();
+  };
+
+  // Initialize drawing tools
+  useEffect(() => {
+    if (!chartInstance || !chartInstance.chart) {
+      console.warn('Chart instance is not available yet');
+      return;
+    }
+
+    const chart = chartInstance.chart;
+    const container = chartInstance.container;
+    
+    if (!chart || !container) {
+      console.warn('Chart or container not available');
+      return;
+    }
+
+    try {
+      // Clear previous drawings when the component re-renders with new props
+      if (drawingsRef.current.length > 0) {
+        for (const drawing of drawingsRef.current) {
+          if (drawing && drawing.remove) {
+            drawing.remove();
+          }
+        }
+        drawingsRef.current = [];
+        onDrawingsChange([]);
+      }
+
+      // Initialize drawing context
+      setDrawingContext({
+        chart,
+        container,
+        coordinateToPrice: chartInstance.coordinateToPrice || (y => y),
+        priceToCoordinate: chartInstance.priceToCoordinate || (price => price)
+      });
+
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('Error initializing drawing tools:', error);
+    }
+  }, [chartInstance, onDrawingsChange]);
+
+  return (
+    <div className="drawing-tools-overlay" ref={overlayRef}>
+      <div 
+        className="drawing-area" 
+        ref={drawingAreaRef}
+        style={{ 
+          cursor: currentTool ? 'crosshair' : 'default',
+          pointerEvents: currentTool ? 'auto' : 'none'
+        }}
+      >
+        <canvas ref={canvasRef} className="drawing-canvas"></canvas>
+      </div>
+    </div>
+  );
 };
 
-export default DrawingTools; 
+export default React.memo(DrawingTools); 

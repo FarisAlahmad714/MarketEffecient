@@ -52,7 +52,7 @@ const ChartingExams = () => {
                 {exam.difficulty.charAt(0).toUpperCase() + exam.difficulty.slice(1)}
               </span>
               <p>{exam.description}</p>
-              <Link to={`/charting-exam/${exam.id}`} className="start-exam-btn">
+              <Link to={`/charting_exam/${exam.id}`} className="start-exam-btn">
                 Start Exam
               </Link>
             </div>

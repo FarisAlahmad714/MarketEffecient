@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charting Exams</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="nav-container">
+                <a href="../index.html" class="navbar-brand">Trading Master</a>
+                <div class="nav-links">
+                    <a href="../index.html">Home</a>
+                    <a href="index.html" class="active">Charting Exams</a>
+                    <a href="../bias-test/index.html">Bias Tests</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="exams-container">
+            <div class="exams-header">
+                <h1>Charting Exams</h1>
+                <p class="exams-description">Test your technical analysis skills with our interactive charting exams. Select an exam type below to begin.</p>
+            </div>
+            
+            <div class="exams-grid">
+                <div class="exam-card">
+                    <div class="exam-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h2>Swing Analysis</h2>
+                    <p>Identify swing highs and lows, equal highs and lows, and various swing patterns on price charts.</p>
+                    <div class="exam-details">
+                        <div class="detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span>15-20 min</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>5 questions</span>
+                        </div>
+                    </div>
+                    <div class="exam-actions">
+                        <a href="intro.html?exam_type=swing_analysis" class="btn-primary">Start Exam</a>
+                    </div>
+                </div>
+                
+                <div class="exam-card">
+                    <div class="exam-icon">
+                        <i class="fas fa-wave-square"></i>
+                    </div>
+                    <h2>Fibonacci Retracement</h2>
+                    <p>Practice identifying and drawing Fibonacci retracement levels on trending markets.</p>
+                    <div class="exam-details">
+                        <div class="detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span>10-15 min</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>4 questions</span>
+                        </div>
+                    </div>
+                    <div class="exam-actions">
+                        <a href="intro.html?exam_type=fibonacci" class="btn-primary">Start Exam</a>
+                    </div>
+                </div>
+                
+                <div class="exam-card">
+                    <div class="exam-icon">
+                        <i class="fas fa-expand-alt"></i>
+                    </div>
+                    <h2>Fair Value Gap Analysis</h2>
+                    <p>Identify and analyze fair value gaps (FVGs) on various timeframes and market conditions.</p>
+                    <div class="exam-details">
+                        <div class="detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span>15-20 min</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>5 questions</span>
+                        </div>
+                    </div>
+                    <div class="exam-actions">
+                        <a href="intro.html?exam_type=gap_analysis" class="btn-primary">Start Exam</a>
+                    </div>
+                </div>
+                
+                <div class="exam-card coming-soon">
+                    <div class="exam-icon">
+                        <i class="fas fa-drafting-compass"></i>
+                    </div>
+                    <div class="coming-soon-label">Coming Soon</div>
+                    <h2>Supply & Demand Zones</h2>
+                    <p>Learn to identify and analyze supply and demand zones across different market types.</p>
+                    <div class="exam-details">
+                        <div class="detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span>20-25 min</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>6 questions</span>
+                        </div>
+                    </div>
+                    <div class="exam-actions">
+                        <button class="btn-disabled" disabled>Coming Soon</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2023 Trading Master. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <style>
+        /* Exams Page Styling */
+        .exams-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .exams-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .exams-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .exams-description {
+            font-size: 1.1rem;
+            color: var(--text-secondary, #b0b0b0);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .exams-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
+        }
+        
+        .exam-card {
+            background: var(--bg-tertiary, #242424);
+            border-radius: 12px;
+            padding: 30px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .exam-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .exam-icon {
+            font-size: 36px;
+            color: #64B5F6;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        
+        .exam-card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--text-primary, #ffffff);
+        }
+        
+        .exam-card p {
+            color: var(--text-secondary, #b0b0b0);
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        
+        .exam-details {
+            display: flex;
+            margin-bottom: 25px;
+            gap: 20px;
+        }
+        
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary, #b0b0b0);
+            font-size: 0.9rem;
+        }
+        
+        .exam-actions {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .btn-primary, .btn-disabled {
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+            display: inline-block;
+            min-width: 150px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn-disabled {
+            background: var(--bg-secondary, #333333);
+            color: var(--text-secondary, #b0b0b0);
+            cursor: not-allowed;
+            border: none;
+        }
+        
+        /* Coming Soon Card */
+        .coming-soon {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .coming-soon-label {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(33, 150, 243, 0.2);
+            color: #64B5F6;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        /* Footer Styling */
+        .footer {
+            background: var(--bg-secondary, #1a1a1a);
+            padding: 20px 0;
+            margin-top: 50px;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+            color: var(--text-secondary, #b0b0b0);
+            font-size: 0.9rem;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .exams-header h1 {
+                font-size: 2rem;
+            }
+            
+            .exams-description {
+                font-size: 1rem;
+            }
+            
+            .exams-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</body>
+</html> 

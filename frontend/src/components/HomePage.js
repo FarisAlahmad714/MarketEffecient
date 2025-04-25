@@ -26,7 +26,7 @@ const HomePage = () => {
           </div>
           <h2>Charting Exams</h2>
           <p>Practice technical analysis with interactive charting exercises.</p>
-          <Link to="/charting-exams" className="feature-button">Start Learning</Link>
+          <Link to="/charting_exam" className="feature-button">Start Learning</Link>
         </div>
       </div>
     </div>

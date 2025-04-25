@@ -1,0 +1,231 @@
+.drawing-tools {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 100;
+}
+
+.tool-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  background-color: rgba(30, 30, 47, 0.85);
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.tool-buttons button {
+  background-color: #2c2c44;
+  color: #d1d4dc;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.2s;
+}
+
+.tool-buttons button:hover {
+  background-color: #3e3e5e;
+}
+
+.tool-buttons button.active {
+  background-color: #4b4b8f;
+  color: white;
+}
+
+.tool-buttons button i {
+  font-size: 12px;
+}
+
+.tool-buttons .secondary {
+  background-color: #414154;
+}
+
+.tool-buttons .submit {
+  background-color: #00bfa5;
+  color: white;
+}
+
+/* Point type selector styles */
+.point-type-selector {
+  display: flex;
+  margin: 5px 0;
+  background-color: #242438;
+  border-radius: 3px;
+  padding: 2px;
+  gap: 5px;
+}
+
+.point-type-btn {
+  background-color: #2c2c44;
+  color: #d1d4dc;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.point-type-btn.active {
+  background-color: #3b3b59;
+}
+
+.color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.color-dot.high {
+  background-color: #ff4560;
+}
+
+.color-dot.low {
+  background-color: #00e396;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .drawing-tools {
+    bottom: 5px;
+    left: 5px;
+  }
+  
+  .tool-buttons {
+    padding: 5px;
+  }
+  
+  .tool-buttons button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
+
+.drawing-tools-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.drawing-area {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.drawing-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.drawing-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background-color: rgba(30, 30, 30, 0.8);
+  border-radius: 5px;
+  padding: 5px;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.tool-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 4px;
+  background-color: #333;
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.tool-btn:hover {
+  background-color: #444;
+}
+
+.tool-btn.active {
+  background-color: #0078d4;
+}
+
+.tool-btn.undo {
+  background-color: #8a6d3b;
+}
+
+.tool-btn.clear {
+  background-color: #a94442;
+}
+
+.score-display {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(30, 30, 30, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  pointer-events: auto;
+  z-index: 3;
+  width: 200px;
+}
+
+.score-value {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.score-bar {
+  width: 100%;
+  height: 10px;
+  background-color: #444;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.score-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .drawing-controls {
+    flex-direction: row;
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    justify-content: center;
+  }
+  
+  .score-display {
+    width: 150px;
+  }
+} 

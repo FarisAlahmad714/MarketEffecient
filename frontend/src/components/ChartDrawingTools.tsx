@@ -17,6 +17,7 @@ interface DrawingObject {
   visible: boolean;
   color: string;
   selected: boolean;
+  pointType?: 'high' | 'low'; // For swing points
 }
 
 interface FibonacciLevels {
@@ -35,6 +36,22 @@ interface ChartDrawingToolsProps {
   xToDate: (x: number) => Date;
   onSaveDrawings?: (drawings: DrawingObject[]) => void;
   savedDrawings?: DrawingObject[];
+  candleData?: any[];
+  availableTools?: DrawingTool[]; // New prop to restrict available tools
+  examType?: string; // New prop to customize behavior based on exam type
+}
+
+// Define candle interface for finding the closest wick
+interface Candle {
+  x: number;
+  y: number;
+  high: number;
+  low: number;
+  open: number;
+  close: number;
+  time: number;
+  wickTop?: number;
+  wickBottom?: number;
 }
 
 const DEFAULT_COLORS = {
@@ -64,6 +81,9 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
   xToDate,
   onSaveDrawings,
   savedDrawings = [],
+  candleData = [],
+  availableTools = ['pointer', 'line', 'horizontalLine', 'box', 'fibonacci'], // Default to all tools if not specified
+  examType = 'swing_analysis'
 }) => {
   const [activeTool, setActiveTool] = useState<DrawingTool | null>(null);
   const [drawings, setDrawings] = useState<DrawingObject[]>(savedDrawings);
@@ -71,6 +91,8 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
   const [currentDrawing, setCurrentDrawing] = useState<DrawingObject | null>(null);
   const [showAllDrawings, setShowAllDrawings] = useState(true);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [svgModeEnabled, setSvgModeEnabled] = useState(true);
+  const [pointType, setPointType] = useState<'high' | 'low'>('high'); // For swing analysis
   
   const svgRef = useRef<SVGSVGElement>(null);
   const drawingHistoryRef = useRef<DrawingObject[][]>([]);
@@ -93,8 +115,81 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
   }, [drawings]);
   
   useEffect(() => {
+    // Save drawings when they change if callback is provided
+    if (onSaveDrawings) {
+      onSaveDrawings(drawings);
+    }
+  }, [drawings, onSaveDrawings]);
+  
+  // Effect to update SVG mode
+  useEffect(() => {
+    if (svgRef.current) {
+      svgRef.current.style.pointerEvents = svgModeEnabled ? 'all' : 'none';
+    }
+  }, [svgModeEnabled]);
+  
+  // Find the closest candlewick to a point
+  const findClosestCandlewick = (x: number, y: number): Point => {
+    if (!candleData || candleData.length === 0) {
+      return { x, y }; // Return original point if no candle data
+    }
+    
+    // Process candle data to calculate x positions and wick locations
+    const processedCandles: Candle[] = candleData.map((candle, index) => {
+      // Convert time to x coordinate - this assumes candleData has time property
+      const candleX = dateToX(new Date(candle.time * 1000));
+      // Convert price values to y coordinates
+      const highY = priceToY(candle.high);
+      const lowY = priceToY(candle.low);
+      const openY = priceToY(candle.open);
+      const closeY = priceToY(candle.close);
+      
+      // The body top and bottom
+      const bodyTop = Math.min(openY, closeY);
+      const bodyBottom = Math.max(openY, closeY);
+      
+      return {
+        ...candle,
+        x: candleX,
+        y: (highY + lowY) / 2, // Center point of the candle
+        highY,
+        lowY,
+        openY,
+        closeY,
+        wickTop: highY, // Top of the wick
+        wickBottom: lowY, // Bottom of the wick
+        bodyTop,
+        bodyBottom
+      };
+    });
+    
+    // Find the closest candle based on x position
+    const closestCandle = processedCandles.reduce((closest, candle) => {
+      const distanceX = Math.abs(candle.x - x);
+      const currentClosestDistance = Math.abs(closest.x - x);
+      return distanceX < currentClosestDistance ? candle : closest;
+    }, processedCandles[0]);
+    
+    if (!closestCandle) return { x, y };
+    
+    // Determine if the click is closer to the top wick or bottom wick
+    const distanceToTopWick = Math.abs(y - closestCandle.wickTop);
+    const distanceToBottomWick = Math.abs(y - closestCandle.wickBottom);
+    
+    // Return the closest point on the wick
+    if (distanceToTopWick <= distanceToBottomWick) {
+      return { x: closestCandle.x, y: closestCandle.wickTop };
+    } else {
+      return { x: closestCandle.x, y: closestCandle.wickBottom };
+    }
+  };
+  
+  useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
-      if (!activeTool || !svgRef.current) return;
+      if (!svgRef.current) return;
+      
+      // If SVG mode is disabled and no tool is active, allow normal chart interaction
+      if (!svgModeEnabled && !activeTool) return;
       
       const svgRect = svgRef.current.getBoundingClientRect();
       const x = e.clientX - svgRect.left;
@@ -103,7 +198,7 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
       if (x < 0 || x > chartWidth || y < 0 || y > chartHeight) return;
       
       if (activeTool === 'pointer') {
-        // Check if clicking on an existing drawing
+        // First check if clicking on an existing drawing
         const clicked = drawings.find(drawing => isPointOnDrawing(drawing, { x, y }));
         if (clicked) {
           setDrawings(drawings.map(d => ({
@@ -113,7 +208,24 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
           return;
         }
         
-        // If not clicking on a drawing, deselect all
+        // If no existing drawing found, create a new pointer at the closest candlewick
+        const wickPoint = findClosestCandlewick(x, y);
+        
+        const newDrawing: DrawingObject = {
+          id: `pointer-${Date.now()}`,
+          type: 'pointer',
+          points: [wickPoint],
+          visible: true,
+          color: '#FF5722',
+          selected: false,
+        };
+        
+        setDrawings([...drawings, newDrawing]);
+        return;
+      }
+      
+      // If not pointing or SVG mode disabled, deselect all drawings
+      if (!activeTool || !svgModeEnabled) {
         setDrawings(drawings.map(d => ({
           ...d,
           selected: false,
@@ -121,7 +233,7 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
         return;
       }
       
-      // Start a new drawing
+      // Start a new drawing for other tools
       const newDrawing: DrawingObject = {
         id: `drawing-${Date.now()}`,
         type: activeTool,
@@ -137,6 +249,9 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
     
     const handleMouseMove = (e: MouseEvent) => {
       if (!svgRef.current) return;
+      
+      // If SVG mode is disabled and no tool is active, allow normal chart interaction
+      if (!svgModeEnabled && !activeTool) return;
       
       const svgRect = svgRef.current.getBoundingClientRect();
       const x = e.clientX - svgRect.left;
@@ -218,7 +333,9 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
     chartWidth, 
     chartHeight, 
     yToPrice, 
-    xToDate
+    xToDate,
+    svgModeEnabled,
+    candleData
   ]);
   
   const isPointOnDrawing = (drawing: DrawingObject, point: Point): boolean => {
@@ -332,6 +449,45 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
     );
   };
   
+  // Add renderPointer function to render the pointer marker
+  const renderPointer = (point: Point, color: string, selected: boolean) => {
+    return (
+      <>
+        {/* Draw a circle at the point */}
+        <circle 
+          cx={point.x} 
+          cy={point.y} 
+          r={selected ? 8 : 6}
+          fill={selected ? 'rgba(255, 87, 34, 0.8)' : 'rgba(255, 87, 34, 0.6)'}
+          stroke={color}
+          strokeWidth={selected ? 2 : 1}
+          className="pointer"
+        />
+        {/* Add a vertical line to make it look like a pointer */}
+        <line 
+          x1={point.x} 
+          y1={point.y - 15} 
+          x2={point.x} 
+          y2={point.y + 15}
+          stroke={color}
+          strokeWidth={selected ? 2 : 1}
+          strokeDasharray={selected ? "none" : "3,3"}
+          className="pointer-line"
+        />
+        {/* Show price label */}
+        <text
+          x={point.x + 10}
+          y={point.y - 10}
+          fill={color}
+          fontSize="12"
+          fontWeight={selected ? "bold" : "normal"}
+        >
+          {yToPrice(point.y).toFixed(2)}
+        </text>
+      </>
+    );
+  };
+  
   const renderDrawing = (drawing: DrawingObject) => {
     if (!drawing.visible) return null;
     
@@ -342,6 +498,11 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
     const [p1, p2] = points;
     const strokeWidth = selected ? 2 : 1;
     const strokeDasharray = selected ? '5,3' : 'none';
+    
+    // For pointer type, render a special marker
+    if (type === 'pointer' && points.length === 1) {
+      return renderPointer(points[0], color, selected);
+    }
     
     switch (type) {
       case 'line':
@@ -438,113 +599,234 @@ const ChartDrawingTools: React.FC<ChartDrawingToolsProps> = ({
     }
   };
   
+  // Start drawing when mouse is clicked
+  const startDrawing = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!activeTool) return;
+    
+    const svgRect = svgRef.current?.getBoundingClientRect();
+    if (!svgRect) return;
+    
+    const x = e.clientX - svgRect.left;
+    const y = e.clientY - svgRect.top;
+    
+    // Find closest candle wick for more precise placement (especially for swing points)
+    const snapToWick = examType === 'swing_analysis' && activeTool === 'pointer';
+    const point = snapToWick ? findClosestCandlewick(x, y) : { x, y };
+    
+    // Get price and time for the point
+    const time = xToDate(point.x).getTime() / 1000; // Convert to seconds
+    const price = yToPrice(point.y);
+    
+    const id = `drawing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    let newDrawing: DrawingObject;
+    
+    switch (activeTool) {
+      case 'pointer':
+        newDrawing = {
+          id,
+          type: 'pointer',
+          points: [{ x: point.x, y: point.y }],
+          visible: true,
+          color: pointType === 'high' ? '#ff4560' : '#00e396', // Red for highs, green for lows
+          selected: false,
+          pointType // Store the point type (high or low)
+        };
+        break;
+        
+      case 'line':
+        newDrawing = {
+          id,
+          type: 'line',
+          points: [{ x: point.x, y: point.y }, { x: point.x, y: point.y }],
+          visible: true,
+          color: '#2196f3',
+          selected: false
+        };
+        break;
+        
+      case 'horizontalLine':
+        newDrawing = {
+          id,
+          type: 'horizontalLine',
+          points: [{ x: 0, y: point.y }, { x: chartWidth, y: point.y }],
+          visible: true,
+          color: '#4caf50',
+          selected: false
+        };
+        // Horizontal lines are created immediately
+        setDrawings([...drawings, newDrawing]);
+        setCurrentDrawing(null);
+        return;
+        
+      case 'box':
+        newDrawing = {
+          id,
+          type: 'box',
+          points: [
+            { x: point.x, y: point.y }, // top-left
+            { x: point.x, y: point.y }  // bottom-right
+          ],
+          visible: true,
+          color: '#ff9800',
+          selected: false
+        };
+        break;
+        
+      case 'fibonacci':
+        newDrawing = {
+          id,
+          type: 'fibonacci',
+          points: [{ x: point.x, y: point.y }, { x: point.x, y: point.y }],
+          visible: true,
+          color: '#9c27b0',
+          selected: false
+        };
+        break;
+        
+      default:
+        return;
+    }
+    
+    setCurrentDrawing(newDrawing);
+    setIsDrawing(true);
+  };
+  
   return (
     <div className="chart-drawing-tools">
-      <div className="drawing-toolbar">
-        <div className="tool-group">
-          <button
-            className={`drawing-tool-button ${activeTool === 'pointer' ? 'active' : ''}`}
-            onClick={() => setActiveTool('pointer')}
-            title="Pointer Tool"
-          >
-            <FontAwesomeIcon icon={faMousePointer} />
-          </button>
-          <button
-            className={`drawing-tool-button ${activeTool === 'line' ? 'active' : ''}`}
+      <div className="svg-container" style={{ width: chartWidth, height: chartHeight }}>
+        <svg
+          ref={svgRef}
+          width={chartWidth}
+          height={chartHeight}
+          onMouseDown={startDrawing}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          {/* Render all existing drawings */}
+          {drawings.filter(d => d.visible).map(drawing => renderDrawing(drawing))}
+          
+          {/* Render the current drawing being created */}
+          {currentDrawing && renderDrawing(currentDrawing)}
+        </svg>
+      </div>
+      
+      <div className="drawing-tools-panel">
+        {availableTools.includes('pointer') && (
+          <div className="tool-group">
+            <button 
+              className={`tool-button ${activeTool === 'pointer' ? 'active' : ''}`}
+              onClick={() => setActiveTool('pointer')}
+              title="Pointer Tool"
+            >
+              <FontAwesomeIcon icon={faMousePointer} />
+            </button>
+            
+            {/* Show point type selection only for swing analysis */}
+            {examType === 'swing_analysis' && activeTool === 'pointer' && (
+              <div className="point-type-selector">
+                <button 
+                  className={`point-type ${pointType === 'high' ? 'active' : ''}`}
+                  onClick={() => setPointType('high')}
+                  title="Mark Swing High"
+                >
+                  High
+                </button>
+                <button 
+                  className={`point-type ${pointType === 'low' ? 'active' : ''}`}
+                  onClick={() => setPointType('low')}
+                  title="Mark Swing Low"
+                >
+                  Low
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {availableTools.includes('line') && (
+          <button 
+            className={`tool-button ${activeTool === 'line' ? 'active' : ''}`}
             onClick={() => setActiveTool('line')}
             title="Line Tool"
           >
             <FontAwesomeIcon icon={faChartLine} />
           </button>
-          <button
-            className={`drawing-tool-button ${activeTool === 'horizontalLine' ? 'active' : ''}`}
+        )}
+        
+        {availableTools.includes('horizontalLine') && (
+          <button 
+            className={`tool-button ${activeTool === 'horizontalLine' ? 'active' : ''}`}
             onClick={() => setActiveTool('horizontalLine')}
             title="Horizontal Line Tool"
           >
             <FontAwesomeIcon icon={faRulerHorizontal} />
           </button>
-          <button
-            className={`drawing-tool-button ${activeTool === 'box' ? 'active' : ''}`}
+        )}
+        
+        {availableTools.includes('box') && (
+          <button 
+            className={`tool-button ${activeTool === 'box' ? 'active' : ''}`}
             onClick={() => setActiveTool('box')}
             title="Box Tool"
           >
             <FontAwesomeIcon icon={faVectorSquare} />
           </button>
-          <button
-            className={`drawing-tool-button ${activeTool === 'fibonacci' ? 'active' : ''}`}
+        )}
+        
+        {availableTools.includes('fibonacci') && (
+          <button 
+            className={`tool-button ${activeTool === 'fibonacci' ? 'active' : ''}`}
             onClick={() => setActiveTool('fibonacci')}
             title="Fibonacci Tool"
           >
             <FontAwesomeIcon icon={faDrawPolygon} />
           </button>
-        </div>
+        )}
         
-        <div className="divider"></div>
+        <button 
+          className="tool-button"
+          onClick={handleUndoLastDrawing}
+          title="Undo Last Drawing"
+          disabled={drawings.length === 0}
+        >
+          <FontAwesomeIcon icon={faUndo} />
+        </button>
         
-        <div className="tool-group">
-          <button
-            className="action-button"
-            onClick={handleUndoLastDrawing}
-            title="Undo Last Drawing"
-          >
-            <FontAwesomeIcon icon={faUndo} />
-          </button>
-          <button
-            className="action-button"
-            onClick={handleDeleteSelected}
-            title="Delete Selected"
-          >
-            <FontAwesomeIcon icon={faEraser} />
-          </button>
-          <button
-            className="action-button danger"
-            onClick={handleClearAll}
-            title="Clear All Drawings"
-          >
-            <FontAwesomeIcon icon={faTrashAlt} />
-          </button>
-        </div>
+        <button 
+          className="tool-button"
+          onClick={handleDeleteSelected}
+          title="Delete Selected"
+          disabled={!drawings.some(d => d.selected)}
+        >
+          <FontAwesomeIcon icon={faEraser} />
+        </button>
         
-        <div className="divider"></div>
+        <button 
+          className="tool-button"
+          onClick={handleClearAll}
+          title="Clear All"
+          disabled={drawings.length === 0}
+        >
+          <FontAwesomeIcon icon={faTrashAlt} />
+        </button>
         
-        <div className="tool-group">
-          <button
-            className="action-button"
-            onClick={handleToggleAllDrawings}
-            title={showAllDrawings ? "Hide All Drawings" : "Show All Drawings"}
-          >
-            <FontAwesomeIcon icon={showAllDrawings ? faEye : faEyeSlash} />
-          </button>
-          <button
-            className="action-button"
-            onClick={handleSaveDrawings}
-            title="Save Drawings"
-          >
-            <FontAwesomeIcon icon={faSave} />
-          </button>
-        </div>
+        <button 
+          className="tool-button"
+          onClick={() => setShowAllDrawings(!showAllDrawings)}
+          title={showAllDrawings ? "Hide All Drawings" : "Show All Drawings"}
+        >
+          <FontAwesomeIcon icon={showAllDrawings ? faEye : faEyeSlash} />
+        </button>
       </div>
       
-      <svg
-        ref={svgRef}
-        width={chartWidth}
-        height={chartHeight}
-        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
-      >
-        {drawings.map(drawing => (
-          <g key={drawing.id}>{renderDrawing(drawing)}</g>
-        ))}
-        {currentDrawing && currentDrawing.points.length > 1 && (
-          <g>{renderDrawing(currentDrawing)}</g>
-        )}
-      </svg>
-      
       {tooltip && (
-        <div
-          className="drawing-tooltip"
-          style={{
-            left: tooltip.x,
-            top: tooltip.y,
+        <div 
+          className="tooltip" 
+          style={{ 
+            left: tooltip.x + 10, 
+            top: tooltip.y - 30 
           }}
         >
           {tooltip.text}

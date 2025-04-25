@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import TradingViewChart from './TradingViewChart';
 import ChartDrawingTools from './ChartDrawingTools';
-import axios from 'axios';
+import api, { getChartingExamInfo, getPracticeChart, getNextChart, validateChartingExam } from '../services/api';
 import './ChartExamWrapper.css';
 
 interface ExamParams {
@@ -30,6 +30,20 @@ const ChartExamWrapper: React.FC = () => {
   const [scores, setScores] = useState<any[]>([]);
   
   const chartRef = useRef<HTMLDivElement>(null);
+  
+  // Define available tools for each exam type
+  const examTools = {
+    'swing_analysis': ['pointer', 'line'],
+    'fibonacci_retracement': ['fibonacci'],
+    'gap_analysis': ['box', 'line'],
+    'order_blocks': ['box', 'line', 'pointer']
+  };
+  
+  // Get the tools for the current exam type
+  const getAvailableTools = (): string[] => {
+    const normalizedExamType = examType.replace(/-/g, '_');
+    return examTools[normalizedExamType as keyof typeof examTools] || ['pointer', 'line'];
+  };
   
   // Fetch exam info on initial load
   useEffect(() => {
@@ -65,8 +79,8 @@ const ChartExamWrapper: React.FC = () => {
   
   const fetchExamInfo = async () => {
     try {
-      const response = await axios.get(`/api/charting_exam/${examType}`);
-      setExamInfo(response.data);
+      const data = await getChartingExamInfo(examType);
+      setExamInfo(data);
     } catch (err: any) {
       setError(`Error fetching exam info: ${err.message}`);
       console.error('Error fetching exam info:', err);
@@ -76,18 +90,10 @@ const ChartExamWrapper: React.FC = () => {
   const fetchPracticeChart = async () => {
     setLoading(true);
     try {
-      let url = `/api/charting_exam/${examType}/practice`;
-      if (section) {
-        url += `?section=${section}`;
-      }
-      if (chartNum) {
-        url += `${section ? '&' : '?'}chart_num=${chartNum}`;
-      }
-      
-      const response = await axios.get(url);
+      const data = await getPracticeChart(examType, section, chartNum);
       
       // Format the candle data for TradingViewChart
-      const formattedCandles = response.data.chart_data.map((candle: any) => ({
+      const formattedCandles = data.chart_data.map((candle: any) => ({
         time: candle.time,
         open: candle.open,
         high: candle.high,
@@ -96,7 +102,7 @@ const ChartExamWrapper: React.FC = () => {
       }));
       
       setChartData(formattedCandles);
-      setChartCount(response.data.progress.chart_count || 1);
+      setChartCount(data.progress.chart_count || 1);
     } catch (err: any) {
       setError(`Error fetching practice chart: ${err.message}`);
       console.error('Error fetching practice chart:', err);
@@ -113,15 +119,9 @@ const ChartExamWrapper: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await axios.get('/api/charting_exam/next_chart', {
-        params: { 
-          exam_type: examType,
-          section: section,
-          chart_count: chartCount + 1
-        }
-      });
+      const data = await getNextChart(examType, section, chartCount + 1);
       
-      const formattedCandles = response.data.chart_data.map((candle: any) => ({
+      const formattedCandles = data.chart_data.map((candle: any) => ({
         time: candle.time,
         open: candle.open,
         high: candle.high,
@@ -130,7 +130,7 @@ const ChartExamWrapper: React.FC = () => {
       }));
       
       setChartData(formattedCandles);
-      setChartCount(response.data.chart_count || chartCount + 1);
+      setChartCount(data.chart_count || chartCount + 1);
       setDrawings([]);
       setShowResults(false);
       setFeedback(null);
@@ -153,21 +153,47 @@ const ChartExamWrapper: React.FC = () => {
   const handleSubmitDrawings = async () => {
     setLoading(true);
     try {
-      const response = await axios.post('/api/charting_exam/validate', {
-        examType: examType,
-        section: section,
-        drawings: drawings,
-        chartNumber: chartCount
+      // Format the drawings for validation
+      // Ensure each drawing has time and price information
+      const formattedDrawings = drawings.map(drawing => {
+        // For pointer/swing point drawings
+        if (drawing.type === 'pointer') {
+          // Make sure to include point type (high or low)
+          return {
+            type: 'pointer',
+            pointType: drawing.pointType || 'high',
+            time: drawing.time || xToDate(drawing.points[0].x).getTime() / 1000,
+            price: drawing.price || yToPrice(drawing.points[0].y),
+            points: drawing.points
+          };
+        }
+        // For other drawing types
+        return {
+          ...drawing,
+          time: drawing.time || (drawing.points && drawing.points.length > 0 ? xToDate(drawing.points[0].x).getTime() / 1000 : 0),
+          price: drawing.price || (drawing.points && drawing.points.length > 0 ? yToPrice(drawing.points[0].y) : 0)
+        };
       });
       
-      setFeedback(response.data);
+      const data = {
+        examType: examType,
+        section: section,
+        drawings: formattedDrawings,
+        chartNumber: chartCount,
+        chartData: chartData, // Include the chart data for validation
+        interval: examInfo.timeframe || 'daily'
+      };
+      
+      const result = await validateChartingExam(examType, data);
+      
+      setFeedback(result);
       setShowResults(true);
       
       // Add to scores
       setScores(prev => [...prev, {
         chart: chartCount,
-        score: response.data.score,
-        totalPoints: response.data.totalExpectedPoints
+        score: result.score,
+        totalPoints: result.totalExpectedPoints
       }]);
     } catch (err: any) {
       setError(`Error validating drawings: ${err.message}`);
@@ -213,7 +239,8 @@ const ChartExamWrapper: React.FC = () => {
       };
     }
     
-    const prices = chartData.flatMap(candle => [candle.low, candle.high]);
+    // Calculate min and max prices from chart data
+    const prices = chartData.flatMap(candle => [candle.high, candle.low]);
     const times = chartData.map(candle => candle.time);
     
     return {
@@ -223,71 +250,97 @@ const ChartExamWrapper: React.FC = () => {
       maxTime: Math.max(...times)
     };
   };
-  
-  const { minPrice, maxPrice, minTime, maxTime } = getChartDimensions();
-  
+
+  // Convert price to Y coordinate
   const priceToY = (price: number): number => {
-    if (maxPrice === minPrice) return 0;
+    const { minPrice, maxPrice } = getChartDimensions();
     return chartHeight - ((price - minPrice) / (maxPrice - minPrice)) * chartHeight;
   };
   
+  // Convert Y coordinate to price
   const yToPrice = (y: number): number => {
-    if (maxPrice === minPrice) return 0;
-    return maxPrice - (y / chartHeight) * (maxPrice - minPrice);
+    const { minPrice, maxPrice } = getChartDimensions();
+    return minPrice + ((chartHeight - y) / chartHeight) * (maxPrice - minPrice);
   };
   
+  // Convert date to X coordinate
   const dateToX = (date: Date): number => {
-    if (maxTime === minTime) return 0;
-    return ((date.getTime() / 1000 - minTime) / (maxTime - minTime)) * chartWidth;
+    const { minTime, maxTime } = getChartDimensions();
+    const time = date.getTime() / 1000;
+    return ((time - minTime) / (maxTime - minTime)) * chartWidth;
   };
   
+  // Convert X coordinate to date
   const xToDate = (x: number): Date => {
-    if (maxTime === minTime) return new Date(0);
-    const timestamp = minTime + (x / chartWidth) * (maxTime - minTime);
-    return new Date(timestamp * 1000);
+    const { minTime, maxTime } = getChartDimensions();
+    const time = minTime + (x / chartWidth) * (maxTime - minTime);
+    return new Date(time * 1000);
   };
   
   const renderToolbar = () => {
-    // Get the appropriate tools based on exam type
-    let tools: string[] = [];
+    const availableTools = getAvailableTools();
     
-    if (examInfo && examInfo.tools_required) {
-      tools = examInfo.tools_required;
-    } else {
-      // Default tools based on exam type if not specified
-      switch (examType) {
-        case 'swing_analysis':
-          tools = ['pointer', 'line', 'horizontalLine'];
-          break;
-        case 'fibonacci_retracement':
-          tools = ['fibonacci'];
-          break;
-        case 'gap_analysis':
-          tools = ['box', 'line'];
-          break;
-        default:
-          tools = ['pointer', 'line', 'horizontalLine', 'box', 'fibonacci'];
-      }
+    // Get exam-specific instructions
+    let instructions = '';
+    if (examType === 'swing_analysis') {
+      instructions = 'Mark all significant swing highs and lows using the pointer tool';
+    } else if (examType === 'fibonacci_retracement') {
+      instructions = 'Draw a Fibonacci retracement from the significant swing high to swing low';
+    } else if (examType === 'gap_analysis') {
+      instructions = 'Identify and mark fair value gaps using the box tool';
+    } else if (examType === 'order_blocks') {
+      instructions = 'Identify and mark order blocks and liquidity using the box tool';
     }
     
     return (
-      <div className="chart-exam-toolbar">
-        <div className="tool-section">
-          <h3>Drawing Tools</h3>
-          <div className="tools-container">
-            {/* Drawing tools will be managed by the ChartDrawingTools component */}
+      <div className="charting-toolbar">
+        <div className="exam-info">
+          <h3>{examInfo.title || 'Charting Exam'}</h3>
+          <p className="instructions">{instructions}</p>
+          <div className="exam-progress">
+            Chart {chartCount} of 5
           </div>
         </div>
-        
-        <div className="action-section">
-          <button 
-            className="btn-submit"
-            onClick={handleSubmitDrawings}
-            disabled={drawings.length === 0}
-          >
-            Submit Answer
-          </button>
+        <div className="tool-container">
+          {availableTools.includes('pointer') && (
+            <button
+              className={`tool-button ${drawings.some(d => d.type === 'pointer') ? 'active' : ''}`}
+              title="Mark swing points"
+            >
+              Pointer Tool
+            </button>
+          )}
+          {availableTools.includes('line') && (
+            <button
+              className={`tool-button ${drawings.some(d => d.type === 'line') ? 'active' : ''}`}
+              title="Draw trend lines"
+            >
+              Line Tool
+            </button>
+          )}
+          {availableTools.includes('box') && (
+            <button
+              className={`tool-button ${drawings.some(d => d.type === 'box') ? 'active' : ''}`}
+              title="Draw boxes for gaps or zones"
+            >
+              Box Tool
+            </button>
+          )}
+          {availableTools.includes('fibonacci') && (
+            <button
+              className={`tool-button ${drawings.some(d => d.type === 'fibonacci') ? 'active' : ''}`}
+              title="Draw Fibonacci retracement levels"
+            >
+              Fibonacci Tool
+            </button>
+          )}
         </div>
+        <button 
+          className="submit-button" 
+          onClick={handleSubmitDrawings}
+        >
+          Submit Analysis
+        </button>
       </div>
     );
   };
@@ -296,115 +349,83 @@ const ChartExamWrapper: React.FC = () => {
     if (!feedback) return null;
     
     if (feedback.finalResults) {
-      // Render final results
       return (
         <div className="feedback-container final-results">
-          <h3>Exam Complete!</h3>
-          <div className="final-score">
-            <span className="score-value">{feedback.totalScore}/{feedback.totalPossible}</span>
-            <span className="score-percentage">{feedback.percentage}%</span>
+          <h3>Exam Results</h3>
+          <div className="score-summary">
+            <p>Your score: {feedback.totalScore} / {feedback.totalPossible}</p>
+            <p>Percentage: {feedback.percentage}%</p>
           </div>
-          
-          <div className="score-bar">
-            <div 
-              className="score-progress" 
-              style={{ width: `${feedback.percentage}%` }}
-            ></div>
-          </div>
-          
-          <div className="chart-breakdown">
-            <h4>Chart by Chart Breakdown</h4>
-            <ul className="chart-scores">
-              {feedback.chartScores.map((score: any, index: number) => (
-                <li key={index} className="chart-score-item">
-                  <span className="chart-number">Chart {score.chart}</span>
-                  <span className="chart-score">{score.score}/{score.totalPoints}</span>
-                  <div className="chart-mini-bar">
-                    <div 
-                      className="chart-mini-progress" 
-                      style={{ width: `${(score.score/score.totalPoints) * 100}%` }}
-                    ></div>
-                  </div>
+          <div className="chart-scores">
+            <h4>Scores by Chart</h4>
+            <ul>
+              {feedback.chartScores.map((score, index) => (
+                <li key={index}>
+                  Chart {score.chart}: {score.score} / {score.totalPoints}
                 </li>
               ))}
             </ul>
           </div>
-          
-          <div className="feedback-actions">
-            <button className="btn-primary" onClick={resetExam}>
-              Try Again
-            </button>
-            <a href="/charting_exams" className="btn-secondary">
-              Return to Exams
-            </a>
-          </div>
+          <button className="reset-button" onClick={resetExam}>
+            Start New Exam
+          </button>
         </div>
       );
     }
     
-    // Render analysis feedback
     return (
       <div className="feedback-container">
-        <h3>Analysis Results</h3>
-        
-        <div className="score-summary">
-          <span className="score-label">Score:</span>
-          <span className={`score-value ${feedback.score > 0 ? 'positive' : 'negative'}`}>
-            {feedback.score}/{feedback.totalExpectedPoints}
-          </span>
+        <h3>Chart {chartCount} Feedback</h3>
+        <p>Score: {feedback.score} / {feedback.totalExpectedPoints}</p>
+        <div className="feedback-sections">
+          {feedback.feedback && feedback.feedback.correct && (
+            <div className="correct-feedback">
+              <h4>Correct Elements:</h4>
+              <ul>
+                {feedback.feedback.correct.map((item, index) => (
+                  <li key={`correct-${index}`}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {feedback.feedback && feedback.feedback.incorrect && (
+            <div className="incorrect-feedback">
+              <h4>Needs Improvement:</h4>
+              <ul>
+                {feedback.feedback.incorrect.map((item, index) => (
+                  <li key={`incorrect-${index}`}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-        
-        <div className="score-bar">
-          <div 
-            className="score-progress" 
-            style={{ width: `${(feedback.score/feedback.totalExpectedPoints) * 100}%` }}
-          ></div>
-        </div>
-        
-        {feedback.feedback && (
-          <div className="feedback-details">
-            {feedback.feedback.correct && feedback.feedback.correct.length > 0 && (
-              <div className="correct-section">
-                <h4>Correct Identifications</h4>
-                <ul className="feedback-list">
-                  {feedback.feedback.correct.map((item: any, index: number) => (
-                    <li key={index} className="feedback-item correct">
-                      <span className="feedback-type">{item.type}</span>
-                      <p className="feedback-advice">{item.advice}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {feedback.feedback.incorrect && feedback.feedback.incorrect.length > 0 && (
-              <div className="incorrect-section">
-                <h4>Areas for Improvement</h4>
-                <ul className="feedback-list">
-                  {feedback.feedback.incorrect.map((item: any, index: number) => (
-                    <li key={index} className="feedback-item incorrect">
-                      <span className="feedback-type">{item.type || 'Error'}</span>
-                      <p className="feedback-advice">{item.advice}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="feedback-actions">
-          <button className="btn-primary" onClick={fetchNextChart}>
-            {chartCount >= 5 ? 'Show Final Results' : 'Next Chart'}
-          </button>
+        <div className="navigation-buttons">
+          {chartCount < 5 ? (
+            <button className="next-button" onClick={fetchNextChart}>
+              Next Chart
+            </button>
+          ) : (
+            <button className="finish-button" onClick={showFinalResults}>
+              View Final Results
+            </button>
+          )}
         </div>
       </div>
     );
   };
   
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading chart data...</p>
+      </div>
+    );
+  }
+  
   if (error) {
     return (
-      <div className="chart-exam-error">
+      <div className="error-container">
         <h3>Error</h3>
         <p>{error}</p>
         <button onClick={fetchPracticeChart}>Retry</button>
@@ -413,71 +434,34 @@ const ChartExamWrapper: React.FC = () => {
   }
   
   return (
-    <div className="chart-exam-wrapper">
-      <h2 className="exam-title">
-        {examInfo.title || `${examType.replace('_', ' ')} Exam`}
-      </h2>
+    <div className="chart-exam-container">
+      {renderToolbar()}
       
-      <div className="exam-description">
-        <p>{examInfo.description || 'Chart analysis exercise'}</p>
-      </div>
-      
-      <div className="exam-progress">
-        <span className="chart-indicator">Chart {chartCount}/5</span>
-        <div className="progress-bar">
-          <div 
-            className="progress" 
-            style={{ width: `${(chartCount / 5) * 100}%` }}
-          ></div>
-        </div>
-      </div>
-      
-      <div className={`chart-container ${showResults ? 'with-results' : ''}`}>
-        <div className="chart-section" ref={chartRef}>
-          {loading ? (
-            <div className="loading-overlay">
-              <div className="spinner"></div>
-              <p>Loading chart...</p>
-            </div>
-          ) : (
-            <>
-              <div className="chart-header">
-                <h3>{chartData[0]?.symbol || 'BTC/USD'}</h3>
-              </div>
-              <div className="chart-view">
-                <TradingViewChart
-                  data={{ candles: chartData }}
-                  onChartReady={handleChartReady}
-                  options={{
-                    height: chartHeight,
-                    width: chartWidth
-                  }}
-                />
-                
-                <ChartDrawingTools
-                  chartRef={chartRef}
-                  chartWidth={chartWidth}
-                  chartHeight={chartHeight}
-                  priceToY={priceToY}
-                  yToPrice={yToPrice}
-                  dateToX={dateToX}
-                  xToDate={xToDate}
-                  onSaveDrawings={handleSaveDrawings}
-                  savedDrawings={drawings}
-                />
-              </div>
-              
-              {renderToolbar()}
-            </>
-          )}
-        </div>
-        
-        {showResults && (
-          <div className="results-section">
-            {renderFeedback()}
-          </div>
+      <div className="chart-container" ref={chartRef}>
+        {chartData.length > 0 && (
+          <>
+            <TradingViewChart 
+              data={chartData} 
+              onChartReady={handleChartReady}
+            />
+            <ChartDrawingTools
+              chartRef={chartRef}
+              chartWidth={chartWidth}
+              chartHeight={chartHeight}
+              priceToY={priceToY}
+              yToPrice={yToPrice}
+              dateToX={dateToX}
+              xToDate={xToDate}
+              onSaveDrawings={handleSaveDrawings}
+              candleData={chartData}
+              availableTools={getAvailableTools() as any[]}
+              examType={examType}
+            />
+          </>
         )}
       </div>
+      
+      {showResults && renderFeedback()}
     </div>
   );
 };
